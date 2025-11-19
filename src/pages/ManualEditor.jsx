@@ -7,13 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, GripVertical, ArrowLeft, Save, Eye, Sparkles, History } from 'lucide-react';
+import { Plus, Trash2, GripVertical, ArrowLeft, Save, Eye, Sparkles, History, Upload } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import AIGenerateDialog from '../components/manuals/AIGenerateDialog';
 import AIImproveButton from '../components/manuals/AIImproveButton';
 import VersionHistory from '../components/manuals/VersionHistory';
+import UploadManualDialog from '../components/manuals/UploadManualDialog';
 
 export default function ManualEditor() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -273,12 +274,16 @@ export default function ManualEditor() {
                   </div>
                   <p className="text-sm text-slate-700 mb-4">
                     Let AI generate comprehensive manual sections based on your topic, 
-                    or create sections manually from scratch.
+                    upload an existing document, or create sections manually from scratch.
                   </p>
-                  <div className="flex gap-3">
+                  <div className="flex gap-3 flex-wrap">
                     <AIGenerateDialog 
                       manualId={manualId} 
                       onSectionsGenerated={handleSectionsGenerated}
+                    />
+                    <UploadManualDialog
+                      manualId={manualId}
+                      onSectionsCreated={handleSectionsGenerated}
                     />
                     <Button 
                       variant="outline" 
@@ -402,10 +407,16 @@ export default function ManualEditor() {
             Add Section Manually
           </Button>
           {sections.length > 0 && (
-            <AIGenerateDialog 
-              manualId={manualId} 
-              onSectionsGenerated={handleSectionsGenerated}
-            />
+            <>
+              <AIGenerateDialog 
+                manualId={manualId} 
+                onSectionsGenerated={handleSectionsGenerated}
+              />
+              <UploadManualDialog
+                manualId={manualId}
+                onSectionsCreated={handleSectionsGenerated}
+              />
+            </>
           )}
         </div>
       </div>
