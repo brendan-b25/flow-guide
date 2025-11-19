@@ -7,12 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, GripVertical, ArrowLeft, Save, Eye, Sparkles } from 'lucide-react';
+import { Plus, Trash2, GripVertical, ArrowLeft, Save, Eye, Sparkles, History } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import AIGenerateDialog from '../components/manuals/AIGenerateDialog';
 import AIImproveButton from '../components/manuals/AIImproveButton';
+import VersionHistory from '../components/manuals/VersionHistory';
 
 export default function ManualEditor() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -39,23 +40,86 @@ export default function ManualEditor() {
   }, [sectionsData]);
 
   const createSectionMutation = useMutation({
-    mutationFn: (data) => base44.entities.ManualSection.create(data),
+    mutationFn: async (data) => {
+      const newSection = await base44.entities.ManualSection.create(data);
+      
+      // Save version history for creation
+      await base44.entities.ManualVersion.create({
+        manual_id: manualId,
+        section_id: newSection.id,
+        version_type: 'section_create',
+        snapshot_data: {
+          title: data.title,
+          content: data.content,
+          section_type: data.section_type,
+          order: data.order
+        },
+        change_description: 'Section created'
+      });
+      
+      return newSection;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries(['sections', manualId]);
+      queryClient.invalidateQueries(['versions', manualId]);
     }
   });
 
   const updateSectionMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.ManualSection.update(id, data),
+    mutationFn: async ({ id, data }) => {
+      // Get the section before updating to save version
+      const currentSections = await base44.entities.ManualSection.filter({ id });
+      const currentSection = currentSections[0];
+      
+      // Update the section
+      await base44.entities.ManualSection.update(id, data);
+      
+      // Save version history
+      await base44.entities.ManualVersion.create({
+        manual_id: manualId,
+        section_id: id,
+        version_type: 'section_update',
+        snapshot_data: {
+          title: currentSection.title,
+          content: currentSection.content,
+          section_type: currentSection.section_type,
+          order: currentSection.order
+        },
+        change_description: 'Section updated'
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries(['sections', manualId]);
+      queryClient.invalidateQueries(['versions', manualId]);
     }
   });
 
   const deleteSectionMutation = useMutation({
-    mutationFn: (id) => base44.entities.ManualSection.delete(id),
+    mutationFn: async (id) => {
+      // Get the section before deleting to save version
+      const sectionsToDelete = await base44.entities.ManualSection.filter({ id });
+      const sectionToDelete = sectionsToDelete[0];
+      
+      // Save version history for deletion
+      await base44.entities.ManualVersion.create({
+        manual_id: manualId,
+        section_id: id,
+        version_type: 'section_delete',
+        snapshot_data: {
+          title: sectionToDelete.title,
+          content: sectionToDelete.content,
+          section_type: sectionToDelete.section_type,
+          order: sectionToDelete.order
+        },
+        change_description: 'Section deleted'
+      });
+      
+      // Delete the section
+      await base44.entities.ManualSection.delete(id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries(['sections', manualId]);
+      queryClient.invalidateQueries(['versions', manualId]);
     }
   });
 
@@ -74,8 +138,26 @@ export default function ManualEditor() {
     updateSectionMutation.mutate({ id, data: updates });
   };
 
-  const handleSectionsGenerated = () => {
+  const handleSectionsGenerated = async () => {
     queryClient.invalidateQueries(['sections', manualId]);
+    
+    // Create a full manual snapshot after AI generation
+    const allSections = await base44.entities.ManualSection.filter({ manual_id: manualId }, 'order');
+    await base44.entities.ManualVersion.create({
+      manual_id: manualId,
+      version_type: 'manual_snapshot',
+      snapshot_data: {
+        sections: allSections.map(s => ({
+          title: s.title,
+          content: s.content,
+          section_type: s.section_type,
+          order: s.order
+        }))
+      },
+      change_description: 'Manual sections generated with AI'
+    });
+    
+    queryClient.invalidateQueries(['versions', manualId]);
   };
 
   const deleteSection = (id) => {
@@ -84,7 +166,7 @@ export default function ManualEditor() {
     }
   };
 
-  const onDragEnd = (result) => {
+  const onDragEnd = async (result) => {
     if (!result.destination) return;
 
     const items = Array.from(sections);
@@ -93,11 +175,31 @@ export default function ManualEditor() {
 
     setSections(items);
 
-    items.forEach((item, index) => {
+    // Update orders
+    for (let index = 0; index < items.length; index++) {
+      const item = items[index];
       if (item.order !== index) {
-        updateSectionMutation.mutate({ id: item.id, data: { order: index } });
+        await base44.entities.ManualSection.update(item.id, { order: index });
       }
+    }
+
+    // Create a snapshot after reordering
+    await base44.entities.ManualVersion.create({
+      manual_id: manualId,
+      version_type: 'manual_snapshot',
+      snapshot_data: {
+        sections: items.map(s => ({
+          title: s.title,
+          content: s.content,
+          section_type: s.section_type,
+          order: s.order
+        }))
+      },
+      change_description: 'Sections reordered'
     });
+
+    queryClient.invalidateQueries(['sections', manualId]);
+    queryClient.invalidateQueries(['versions', manualId]);
   };
 
   const sectionTypeColors = {
@@ -144,12 +246,20 @@ export default function ManualEditor() {
                 <p className="text-slate-600 mt-1">{manual.description}</p>
               </div>
             </div>
-            <Link to={createPageUrl('ManualView') + `?id=${manualId}`}>
-              <Button className="bg-emerald-600 hover:bg-emerald-700">
-                <Eye className="w-4 h-4 mr-2" />
-                Preview
-              </Button>
-            </Link>
+            <div className="flex gap-2">
+              <VersionHistory 
+                manualId={manualId} 
+                onRestore={() => {
+                  queryClient.invalidateQueries(['sections', manualId]);
+                }}
+              />
+              <Link to={createPageUrl('ManualView') + `?id=${manualId}`}>
+                <Button className="bg-emerald-600 hover:bg-emerald-700">
+                  <Eye className="w-4 h-4 mr-2" />
+                  Preview
+                </Button>
+              </Link>
+            </div>
           </div>
 
           {/* AI Generation Section */}
