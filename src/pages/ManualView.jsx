@@ -128,10 +128,15 @@ export default function ManualView() {
           </div>
         </div>
 
-        {/* Table of Contents */}
+        {/* Table of Contents - Auto-generated */}
         {sections.length > 0 && (
           <div className="bg-white rounded-xl p-8 mb-12 shadow-lg print:shadow-none print:break-after-page">
-            <h2 className="text-2xl font-bold text-slate-900 mb-6">Table of Contents</h2>
+            <div className="flex items-center gap-2 mb-6">
+              <h2 className="text-2xl font-bold text-slate-900">Table of Contents</h2>
+              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">
+                Auto-generated
+              </span>
+            </div>
             <div className="space-y-3">
               {sections.map((section, index) => (
                 <div key={section.id} className="flex items-center gap-3 py-2 border-b border-slate-100">

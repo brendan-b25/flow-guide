@@ -7,10 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, GripVertical, ArrowLeft, Save, Eye } from 'lucide-react';
+import { Plus, Trash2, GripVertical, ArrowLeft, Save, Eye, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import AIGenerateDialog from '../components/manuals/AIGenerateDialog';
+import AIImproveButton from '../components/manuals/AIImproveButton';
 
 export default function ManualEditor() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -72,6 +74,10 @@ export default function ManualEditor() {
     updateSectionMutation.mutate({ id, data: updates });
   };
 
+  const handleSectionsGenerated = () => {
+    queryClient.invalidateQueries(['sections', manualId]);
+  };
+
   const deleteSection = (id) => {
     if (confirm('Delete this section?')) {
       deleteSectionMutation.mutate(id);
@@ -125,24 +131,58 @@ export default function ManualEditor() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-50">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="mb-8 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link to={createPageUrl('Manuals')}>
-              <Button variant="outline" size="icon" className="rounded-full">
-                <ArrowLeft className="w-5 h-5" />
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <Link to={createPageUrl('Manuals')}>
+                <Button variant="outline" size="icon" className="rounded-full">
+                  <ArrowLeft className="w-5 h-5" />
+                </Button>
+              </Link>
+              <div>
+                <h1 className="text-3xl font-bold text-slate-900">{manual.title}</h1>
+                <p className="text-slate-600 mt-1">{manual.description}</p>
+              </div>
+            </div>
+            <Link to={createPageUrl('ManualView') + `?id=${manualId}`}>
+              <Button className="bg-emerald-600 hover:bg-emerald-700">
+                <Eye className="w-4 h-4 mr-2" />
+                Preview
               </Button>
             </Link>
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900">{manual.title}</h1>
-              <p className="text-slate-600 mt-1">{manual.description}</p>
-            </div>
           </div>
-          <Link to={createPageUrl('ManualView') + `?id=${manualId}`}>
-            <Button className="bg-emerald-600 hover:bg-emerald-700">
-              <Eye className="w-4 h-4 mr-2" />
-              Preview
-            </Button>
-          </Link>
+
+          {/* AI Generation Section */}
+          {sections.length === 0 && (
+            <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-xl p-6 mb-6">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Sparkles className="w-5 h-5 text-purple-600" />
+                    <h3 className="font-semibold text-slate-900">Start with AI</h3>
+                  </div>
+                  <p className="text-sm text-slate-700 mb-4">
+                    Let AI generate comprehensive manual sections based on your topic, 
+                    or create sections manually from scratch.
+                  </p>
+                  <div className="flex gap-3">
+                    <AIGenerateDialog 
+                      manualId={manualId} 
+                      onSectionsGenerated={handleSectionsGenerated}
+                    />
+                    <Button 
+                      variant="outline" 
+                      onClick={addSection}
+                      className="border-slate-300"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Manually
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Sections */}
@@ -196,6 +236,12 @@ export default function ManualEditor() {
                                     <SelectItem value="conclusion">Conclusion</SelectItem>
                                   </SelectContent>
                                 </Select>
+                                <AIImproveButton
+                                  section={section}
+                                  onImproved={(improvedContent) =>
+                                    updateSection(section.id, { content: improvedContent })
+                                  }
+                                />
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -235,15 +281,23 @@ export default function ManualEditor() {
         </DragDropContext>
 
         {/* Add Section Button */}
-        <Button
-          onClick={addSection}
-          variant="outline"
-          className="w-full h-16 border-2 border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50 transition-all"
-          disabled={createSectionMutation.isPending}
-        >
-          <Plus className="w-5 h-5 mr-2" />
-          Add Section
-        </Button>
+        <div className="flex gap-3">
+          <Button
+            onClick={addSection}
+            variant="outline"
+            className="flex-1 h-16 border-2 border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50 transition-all"
+            disabled={createSectionMutation.isPending}
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            Add Section Manually
+          </Button>
+          {sections.length > 0 && (
+            <AIGenerateDialog 
+              manualId={manualId} 
+              onSectionsGenerated={handleSectionsGenerated}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
