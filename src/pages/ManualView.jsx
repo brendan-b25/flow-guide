@@ -29,31 +29,36 @@ export default function ManualView() {
       bg: 'bg-gradient-to-r from-blue-50 to-blue-100',
       border: 'border-l-4 border-blue-500',
       icon: '📘',
-      label: 'Introduction'
+      label: 'Introduction',
+      decoration: '◈'
     },
     step: {
       bg: 'bg-white',
       border: 'border-l-4 border-slate-400',
       icon: '📝',
-      label: 'Step'
+      label: 'Step',
+      decoration: '▸'
     },
     tip: {
       bg: 'bg-gradient-to-r from-emerald-50 to-emerald-100',
       border: 'border-l-4 border-emerald-500',
       icon: '💡',
-      label: 'Tip'
+      label: 'Tip',
+      decoration: '✦'
     },
     warning: {
       bg: 'bg-gradient-to-r from-amber-50 to-amber-100',
       border: 'border-l-4 border-amber-500',
       icon: '⚠️',
-      label: 'Warning'
+      label: 'Warning',
+      decoration: '◆'
     },
     conclusion: {
       bg: 'bg-gradient-to-r from-purple-50 to-purple-100',
       border: 'border-l-4 border-purple-500',
       icon: '✅',
-      label: 'Conclusion'
+      label: 'Conclusion',
+      decoration: '★'
     }
   };
 
@@ -109,17 +114,31 @@ export default function ManualView() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 print:py-0">
         {/* Cover Page */}
         <div
-          className="rounded-2xl p-16 mb-12 text-center shadow-2xl print:shadow-none print:rounded-none"
+          className="rounded-2xl p-16 mb-12 text-center shadow-2xl print:shadow-none print:rounded-none relative overflow-hidden"
           style={{ backgroundColor: manual.cover_color }}
         >
-          <div className="space-y-6">
+          {/* Decorative elements */}
+          <div className="absolute top-4 left-4 text-white/20 text-4xl">◈</div>
+          <div className="absolute top-4 right-4 text-white/20 text-4xl">◈</div>
+          <div className="absolute bottom-4 left-4 text-white/20 text-4xl">◈</div>
+          <div className="absolute bottom-4 right-4 text-white/20 text-4xl">◈</div>
+          <div className="absolute top-1/2 left-8 -translate-y-1/2 text-white/10 text-6xl">✦</div>
+          <div className="absolute top-1/2 right-8 -translate-y-1/2 text-white/10 text-6xl">✦</div>
+
+          <div className="space-y-6 relative">
             <div className="text-6xl mb-6">📖</div>
+            <div className="flex justify-center gap-2 text-white/40 text-2xl">
+              <span>★</span><span>◆</span><span>★</span>
+            </div>
             <h1 className="text-5xl font-bold text-white mb-4">{manual.title}</h1>
             {manual.description && (
               <p className="text-xl text-white/90 max-w-2xl mx-auto">{manual.description}</p>
             )}
-            <div className="pt-8 text-white/80 text-sm">
-              Created on {new Date(manual.created_date).toLocaleDateString('en-US', {
+            <div className="flex justify-center gap-2 text-white/40 text-xl pt-4">
+              <span>◇</span><span>◇</span><span>◇</span>
+            </div>
+            <div className="pt-4 text-white/80 text-sm">
+              Created on {new Date(manual.created_date).toLocaleDateString('en-AU', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric'
@@ -130,10 +149,15 @@ export default function ManualView() {
 
         {/* Table of Contents - Auto-generated */}
         {sections.length > 0 && (
-          <div className="bg-white rounded-xl p-8 mb-12 shadow-lg print:shadow-none print:break-after-page">
-            <div className="flex items-center gap-2 mb-6">
+          <div className="bg-white rounded-xl p-8 mb-12 shadow-lg print:shadow-none print:break-after-page relative overflow-hidden">
+            <div className="absolute top-0 right-0 text-slate-100 text-9xl font-bold opacity-30 select-none">
+              §
+            </div>
+            <div className="flex items-center gap-2 mb-6 relative">
+              <span className="text-slate-300 text-xl">❧</span>
               <h2 className="text-2xl font-bold text-slate-900">Table of Contents</h2>
-              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">
+              <span className="text-slate-300 text-xl">❧</span>
+              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium ml-2">
                 Auto-generated
               </span>
             </div>
@@ -169,10 +193,12 @@ export default function ManualView() {
                     <span className="text-3xl">{style.icon}</span>
                   </div>
                   <div className="flex-1">
-                    <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-2">
-                      {style.label}
-                    </div>
-                    <h3 className="text-2xl font-bold text-slate-900 mb-4">{section.title}</h3>
+                    <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-slate-500 font-semibold mb-2">
+                          <span className="text-slate-300">{style.decoration}</span>
+                          {style.label}
+                          <span className="text-slate-300">{style.decoration}</span>
+                        </div>
+                        <h3 className="text-2xl font-bold text-slate-900 mb-4">{section.title}</h3>
                   </div>
                 </div>
                 <div className="pl-16">
