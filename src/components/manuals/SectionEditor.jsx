@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Trash2, GripVertical } from 'lucide-react';
 import AIImproveButton from './AIImproveButton';
 import AIChatButton from './AIChatButton';
+import AIIllustrationButton from './AIIllustrationButton';
+import SymbolPicker from './SymbolPicker';
 
 const sectionTypeColors = {
   introduction: 'bg-blue-50 border-blue-200',
@@ -71,6 +73,14 @@ export default function SectionEditor({
     onUpdate(section.id, { content: improvedContent });
   };
 
+  const handleSymbolInsert = (symbol) => {
+    const textarea = document.querySelector(`textarea[data-section-id="${section.id}"]`);
+    const start = textarea?.selectionStart || localContent.length;
+    const newContent = localContent.slice(0, start) + symbol + localContent.slice(start);
+    setLocalContent(newContent);
+    onUpdate(section.id, { content: newContent });
+  };
+
   return (
     <Card
       ref={provided.innerRef}
@@ -115,6 +125,11 @@ export default function SectionEditor({
                 section={{ ...section, content: localContent, title: localTitle }}
                 onApplyChanges={handleImproved}
               />
+              <AIIllustrationButton
+                section={{ ...section, content: localContent, title: localTitle }}
+                onImageGenerated={handleImproved}
+              />
+              <SymbolPicker onInsert={handleSymbolInsert} />
               <Button
                 variant="ghost"
                 size="icon"
@@ -135,6 +150,7 @@ export default function SectionEditor({
               value={localContent}
               onChange={handleContentChange}
               className="min-h-32 bg-white"
+              data-section-id={section.id}
             />
           </div>
         </div>
