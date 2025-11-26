@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -123,7 +123,7 @@ export default function ManualEditor() {
     }
   });
 
-  const addSection = () => {
+  const addSection = useCallback(() => {
     const newSection = {
       manual_id: manualId,
       title: '',
@@ -132,9 +132,9 @@ export default function ManualEditor() {
       section_type: 'step'
     };
     createSectionMutation.mutate(newSection);
-  };
+  }, [manualId, sections.length, createSectionMutation]);
 
-  const updateSection = (id, updates) => {
+  const updateSection = useCallback((id, updates) => {
     // Update local state immediately for responsive UI
     setSections(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
     
@@ -150,8 +150,8 @@ export default function ManualEditor() {
       delete pendingUpdates.current[id];
       delete pendingUpdates.current[`${id}_timeout`];
       updateSectionMutation.mutate({ id, data });
-    }, 1000);
-  };
+    }, 1500); // Increased debounce for better performance
+  }, [updateSectionMutation]);
 
   const handleSectionsGenerated = async () => {
     queryClient.invalidateQueries(['sections', manualId]);
@@ -175,11 +175,9 @@ export default function ManualEditor() {
     queryClient.invalidateQueries(['versions', manualId]);
   };
 
-  const deleteSection = (id) => {
-    if (confirm('Delete this section?')) {
-      deleteSectionMutation.mutate(id);
-    }
-  };
+  const deleteSection = useCallback((id) => {
+    deleteSectionMutation.mutate(id);
+  }, [deleteSectionMutation]);
 
   const onDragEnd = async (result) => {
     if (!result.destination) return;
@@ -219,10 +217,10 @@ export default function ManualEditor() {
 
   if (!manual) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
-          <p className="text-slate-600">Loading manual...</p>
+          <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-slate-600 font-medium">Loading manual...</p>
         </div>
       </div>
     );
@@ -347,18 +345,18 @@ export default function ManualEditor() {
         </DragDropContext>
 
         {/* Add Section Button */}
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
           <Button
             onClick={addSection}
             variant="outline"
-            className="flex-1 h-16 border-2 border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50 transition-all"
+            className="flex-1 min-w-[200px] h-14 border-2 border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50 transition-all group"
             disabled={createSectionMutation.isPending}
           >
-            <Plus className="w-5 h-5 mr-2" />
-            Add Section Manually
+            <Plus className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+            Add Section
           </Button>
           {sections.length > 0 && (
-            <>
+            <div className="flex gap-2">
               <AIGenerateDialog 
                 manualId={manualId} 
                 onSectionsGenerated={handleSectionsGenerated}
@@ -367,7 +365,7 @@ export default function ManualEditor() {
                 manualId={manualId}
                 onSectionsCreated={handleSectionsGenerated}
               />
-            </>
+            </div>
           )}
         </div>
       </div>
