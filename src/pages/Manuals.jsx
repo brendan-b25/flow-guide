@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback, memo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -143,11 +143,11 @@ export default function Manuals() {
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
-              <Card key={i} className="animate-pulse">
-                <div className="h-32 bg-slate-200 rounded-t-lg" />
-                <CardContent className="pt-6">
-                  <div className="h-6 bg-slate-200 rounded w-3/4 mb-2" />
-                  <div className="h-4 bg-slate-200 rounded w-full" />
+              <Card key={i} className="overflow-hidden">
+                <div className="h-32 bg-gradient-to-br from-slate-200 to-slate-100 animate-pulse" />
+                <CardContent className="pt-6 space-y-3">
+                  <div className="h-5 bg-slate-200 rounded-full w-3/4 animate-pulse" />
+                  <div className="h-4 bg-slate-100 rounded-full w-full animate-pulse" />
                 </CardContent>
               </Card>
             ))}
@@ -169,7 +169,7 @@ export default function Manuals() {
             {manuals.map((manual) => (
               <Card
                 key={manual.id}
-                className="group hover:shadow-xl transition-all duration-300 overflow-hidden bg-white border-0 shadow-lg"
+                className="group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden bg-white border-0 shadow-lg"
               >
                 <div
                   className="h-32 relative flex items-center justify-center"

@@ -1,19 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Loader2 } from 'lucide-react';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Sparkles, Loader2, X, Check } from 'lucide-react';
 
-export default function AIImproveButton({ section, onImproved }) {
+export default function AIImproveButton({ section, onImproved, isModal, onClose }) {
   const [isImproving, setIsImproving] = useState(false);
   const [suggestions, setSuggestions] = useState(null);
-  const [isOpen, setIsOpen] = useState(false);
 
-  const handleImprove = async () => {
+  const handleImprove = useCallback(async () => {
     if (!section.content.trim()) {
       alert('Please add some content first before improving it.');
       return;
@@ -28,13 +22,10 @@ Title: ${section.title}
 Current Content:
 ${section.content}
 
-Analyze this section and provide:
-1. An improved version of the content that is clearer, more actionable, and better structured
-2. Specific suggestions for what was improved and why
+Provide an improved version that is clearer, more actionable, and better structured.
+Use markdown formatting. Keep it concise but comprehensive.
 
-Make the improved content more engaging, easier to follow, and professional. Use markdown formatting effectively.
-
-IMPORTANT: All measurements must be in metric units (metres, centimetres, millimetres, kilograms, litres, Celsius, etc.). Use Australian English spelling throughout.`;
+IMPORTANT: Use metric units and Australian English spelling.`;
 
       const result = await base44.integrations.Core.InvokeLLM({
         prompt,
@@ -42,101 +33,108 @@ IMPORTANT: All measurements must be in metric units (metres, centimetres, millim
           type: "object",
           properties: {
             improved_content: { type: "string" },
-            improvements_made: {
-              type: "array",
-              items: { type: "string" }
-            }
+            improvements_made: { type: "array", items: { type: "string" } }
           },
           required: ["improved_content", "improvements_made"]
         }
       });
 
       setSuggestions(result);
-      setIsOpen(true);
     } catch (error) {
       console.error('Error improving content:', error);
       alert('Failed to improve content. Please try again.');
     } finally {
       setIsImproving(false);
     }
-  };
+  }, [section]);
 
-  const handleApply = () => {
+  const handleApply = useCallback(() => {
     if (suggestions) {
       onImproved(suggestions.improved_content);
-      setIsOpen(false);
       setSuggestions(null);
     }
-  };
+  }, [suggestions, onImproved]);
 
-  return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleImprove}
-          disabled={isImproving}
-          className="text-purple-600 hover:text-purple-700 hover:bg-purple-50"
-        >
-          {isImproving ? (
-            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-          ) : (
-            <Sparkles className="w-4 h-4 mr-1" />
-          )}
-          {isImproving ? 'Analyzing...' : 'Improve with AI'}
-        </Button>
-      </PopoverTrigger>
-      {suggestions && (
-        <PopoverContent className="w-96 max-h-96 overflow-y-auto" align="start">
+  // Auto-trigger on mount for modal mode
+  React.useEffect(() => {
+    if (isModal && !suggestions && !isImproving) {
+      handleImprove();
+    }
+  }, [isModal]);
+
+  if (isModal) {
+    return (
+      <div className="p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-lg flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-purple-600" />
+            AI Improvements
+          </h3>
+          <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+
+        {isImproving ? (
+          <div className="py-12 text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-purple-600 mx-auto mb-3" />
+            <p className="text-slate-600">Analysing and improving content...</p>
+          </div>
+        ) : suggestions ? (
           <div className="space-y-4">
             <div>
-              <h4 className="font-semibold text-sm text-slate-900 mb-2">
-                ✨ AI Suggestions
-              </h4>
-              <div className="space-y-2">
-                {suggestions.improvements_made.map((improvement, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-start gap-2 text-sm text-slate-700"
-                  >
-                    <span className="text-green-600 font-bold">•</span>
-                    <span>{improvement}</span>
-                  </div>
+              <p className="text-sm font-medium text-slate-700 mb-2">Improvements made:</p>
+              <ul className="space-y-1">
+                {suggestions.improvements_made.slice(0, 4).map((item, idx) => (
+                  <li key={idx} className="flex items-start gap-2 text-sm text-slate-600">
+                    <span className="text-green-500 mt-0.5">✓</span>
+                    <span>{item}</span>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
-
-            <div className="border-t pt-3">
-              <h4 className="font-semibold text-sm text-slate-900 mb-2">
-                Improved Content Preview:
-              </h4>
-              <div className="bg-slate-50 rounded-lg p-3 text-sm text-slate-700 max-h-40 overflow-y-auto">
-                {suggestions.improved_content.substring(0, 200)}...
-              </div>
+            
+            <div className="bg-slate-50 rounded-lg p-3 max-h-48 overflow-y-auto">
+              <p className="text-xs text-slate-500 mb-1">Preview:</p>
+              <p className="text-sm text-slate-700 whitespace-pre-wrap">
+                {suggestions.improved_content.substring(0, 300)}
+                {suggestions.improved_content.length > 300 && '...'}
+              </p>
             </div>
 
             <div className="flex gap-2 pt-2">
-              <Button
-                onClick={handleApply}
-                className="flex-1 bg-purple-600 hover:bg-purple-700"
-              >
+              <Button onClick={handleApply} className="flex-1 bg-purple-600 hover:bg-purple-700">
+                <Check className="w-4 h-4 mr-2" />
                 Apply Changes
               </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsOpen(false);
-                  setSuggestions(null);
-                }}
-                className="flex-1"
-              >
+              <Button variant="outline" onClick={onClose} className="flex-1">
                 Cancel
               </Button>
             </div>
           </div>
-        </PopoverContent>
-      )}
-    </Popover>
+        ) : (
+          <div className="py-8 text-center text-slate-500">
+            <p>Ready to improve your content</p>
+            <Button onClick={handleImprove} className="mt-4 bg-purple-600 hover:bg-purple-700">
+              <Sparkles className="w-4 h-4 mr-2" />
+              Start Analysis
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Original popover trigger button (kept for backwards compatibility)
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={handleImprove}
+      disabled={isImproving}
+      className="text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+    >
+      {isImproving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+    </Button>
   );
 }
