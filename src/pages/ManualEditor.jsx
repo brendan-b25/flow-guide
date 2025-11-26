@@ -12,6 +12,7 @@ import UploadManualDialog from '../components/manuals/UploadManualDialog';
 import SectionEditor from '../components/manuals/SectionEditor';
 import AIRestructureDialog from '../components/manuals/AIRestructureDialog';
 import StyleDialog from '../components/manuals/StyleDialog';
+import ManualAIChatDialog from '../components/manuals/ManualAIChatDialog';
 
 export default function ManualEditor() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -245,6 +246,12 @@ export default function ManualEditor() {
               </div>
             </div>
             <div className="flex gap-2 flex-wrap">
+              <ManualAIChatDialog
+                manualId={manualId}
+                manual={manual}
+                sections={sections}
+                onApplyChanges={handleSectionsGenerated}
+              />
               {sections.length > 0 && (
                 <>
                   <AIRestructureDialog
