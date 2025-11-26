@@ -1,20 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2, GripVertical, ArrowLeft, Save, Eye, Sparkles, History, Upload } from 'lucide-react';
+import { Plus, ArrowLeft, Eye, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import AIGenerateDialog from '../components/manuals/AIGenerateDialog';
-import AIImproveButton from '../components/manuals/AIImproveButton';
 import VersionHistory from '../components/manuals/VersionHistory';
 import UploadManualDialog from '../components/manuals/UploadManualDialog';
+import SectionEditor from '../components/manuals/SectionEditor';
 
 export default function ManualEditor() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -22,6 +17,7 @@ export default function ManualEditor() {
 
   const [sections, setSections] = useState([]);
   const queryClient = useQueryClient();
+  const pendingUpdates = useRef({});
 
   const { data: manual } = useQuery({
     queryKey: ['manual', manualId],
@@ -136,7 +132,22 @@ export default function ManualEditor() {
   };
 
   const updateSection = (id, updates) => {
-    updateSectionMutation.mutate({ id, data: updates });
+    // Update local state immediately for responsive UI
+    setSections(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+    
+    // Batch updates to reduce API calls
+    pendingUpdates.current[id] = { ...pendingUpdates.current[id], ...updates };
+    
+    // Debounce the actual mutation
+    if (pendingUpdates.current[`${id}_timeout`]) {
+      clearTimeout(pendingUpdates.current[`${id}_timeout`]);
+    }
+    pendingUpdates.current[`${id}_timeout`] = setTimeout(() => {
+      const data = pendingUpdates.current[id];
+      delete pendingUpdates.current[id];
+      delete pendingUpdates.current[`${id}_timeout`];
+      updateSectionMutation.mutate({ id, data });
+    }, 1000);
   };
 
   const handleSectionsGenerated = async () => {
@@ -201,22 +212,6 @@ export default function ManualEditor() {
 
     queryClient.invalidateQueries(['sections', manualId]);
     queryClient.invalidateQueries(['versions', manualId]);
-  };
-
-  const sectionTypeColors = {
-    introduction: 'bg-blue-50 border-blue-200',
-    step: 'bg-slate-50 border-slate-200',
-    tip: 'bg-emerald-50 border-emerald-200',
-    warning: 'bg-amber-50 border-amber-200',
-    conclusion: 'bg-purple-50 border-purple-200'
-  };
-
-  const sectionTypeIcons = {
-    introduction: '📘',
-    step: '📝',
-    tip: '💡',
-    warning: '⚠️',
-    conclusion: '✅'
   };
 
   if (!manual) {
@@ -312,80 +307,13 @@ export default function ManualEditor() {
                 {sections.map((section, index) => (
                   <Draggable key={section.id} draggableId={section.id} index={index}>
                     {(provided, snapshot) => (
-                      <Card
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        className={`${
-                          sectionTypeColors[section.section_type]
-                        } border-2 transition-all ${
-                          snapshot.isDragging ? 'shadow-2xl scale-105' : 'shadow-md'
-                        }`}
-                      >
-                        <CardHeader className="pb-4">
-                          <div className="flex items-start gap-3">
-                            <div
-                              {...provided.dragHandleProps}
-                              className="mt-2 cursor-grab active:cursor-grabbing"
-                            >
-                              <GripVertical className="w-5 h-5 text-slate-400" />
-                            </div>
-                            <div className="flex-1 space-y-4">
-                              <div className="flex items-center gap-3">
-                                <span className="text-2xl">
-                                  {sectionTypeIcons[section.section_type]}
-                                </span>
-                                <Select
-                                  value={section.section_type}
-                                  onValueChange={(value) =>
-                                    updateSection(section.id, { section_type: value })
-                                  }
-                                >
-                                  <SelectTrigger className="w-40">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="introduction">Introduction</SelectItem>
-                                    <SelectItem value="step">Step</SelectItem>
-                                    <SelectItem value="tip">Tip</SelectItem>
-                                    <SelectItem value="warning">Warning</SelectItem>
-                                    <SelectItem value="conclusion">Conclusion</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <AIImproveButton
-                                  section={section}
-                                  onImproved={(improvedContent) =>
-                                    updateSection(section.id, { content: improvedContent })
-                                  }
-                                />
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="ml-auto text-red-600 hover:bg-red-50"
-                                  onClick={() => deleteSection(section.id)}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </div>
-                              <Input
-                                placeholder="Section title..."
-                                value={section.title}
-                                onChange={(e) =>
-                                  updateSection(section.id, { title: e.target.value })
-                                }
-                                className="text-lg font-semibold bg-white"
-                              />
-                              <Textarea
-                                placeholder="Write your instructions here..."
-                                value={section.content}
-                                onChange={(e) =>
-                                  updateSection(section.id, { content: e.target.value })
-                                }
-                                className="min-h-32 bg-white"
-                              />
-                            </div>
-                          </div>
-                        </CardHeader>
-                      </Card>
+                      <SectionEditor
+                        section={section}
+                        provided={provided}
+                        snapshot={snapshot}
+                        onUpdate={updateSection}
+                        onDelete={deleteSection}
+                      />
                     )}
                   </Draggable>
                 ))}

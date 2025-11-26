@@ -43,7 +43,9 @@ For each logical section or topic in the document:
 - Determine the most appropriate section type (introduction, step, tip, warning, or conclusion)
 - Ensure the content is clear, actionable, and well-formatted using markdown
 
-Create 5-15 sections depending on the document length and complexity.`;
+Create 5-15 sections depending on the document length and complexity.
+
+IMPORTANT: Convert all measurements to metric units (metres, centimetres, millimetres, kilograms, litres, Celsius, etc.). Use Australian English spelling throughout.`;
 
       const result = await base44.integrations.Core.InvokeLLM({
         prompt,

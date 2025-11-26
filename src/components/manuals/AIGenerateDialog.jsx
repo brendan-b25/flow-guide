@@ -28,6 +28,8 @@ ${additionalContext ? `Additional Context: ${additionalContext}` : ''}
 
 Generate 5-8 comprehensive sections for this onboarding manual. Each section should be detailed and practical.
 
+IMPORTANT: All measurements must be in metric units (metres, centimetres, millimetres, kilograms, litres, Celsius, etc.). Use Australian English spelling throughout.
+
 For each section, determine the most appropriate type:
 - "introduction": For opening/overview sections
 - "step": For action-oriented instructions

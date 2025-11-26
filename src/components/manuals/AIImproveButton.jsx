@@ -32,7 +32,9 @@ Analyze this section and provide:
 1. An improved version of the content that is clearer, more actionable, and better structured
 2. Specific suggestions for what was improved and why
 
-Make the improved content more engaging, easier to follow, and professional. Use markdown formatting effectively.`;
+Make the improved content more engaging, easier to follow, and professional. Use markdown formatting effectively.
+
+IMPORTANT: All measurements must be in metric units (metres, centimetres, millimetres, kilograms, litres, Celsius, etc.). Use Australian English spelling throughout.`;
 
       const result = await base44.integrations.Core.InvokeLLM({
         prompt,
