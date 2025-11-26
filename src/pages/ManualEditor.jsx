@@ -10,6 +10,8 @@ import AIGenerateDialog from '../components/manuals/AIGenerateDialog';
 import VersionHistory from '../components/manuals/VersionHistory';
 import UploadManualDialog from '../components/manuals/UploadManualDialog';
 import SectionEditor from '../components/manuals/SectionEditor';
+import AIRestructureDialog from '../components/manuals/AIRestructureDialog';
+import StyleDialog from '../components/manuals/StyleDialog';
 
 export default function ManualEditor() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -242,7 +244,21 @@ export default function ManualEditor() {
                 <p className="text-slate-600 mt-1">{manual.description}</p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              {sections.length > 0 && (
+                <>
+                  <AIRestructureDialog
+                    manualId={manualId}
+                    sections={sections}
+                    onRestructured={handleSectionsGenerated}
+                  />
+                  <StyleDialog
+                    manualId={manualId}
+                    sections={sections}
+                    onStyled={handleSectionsGenerated}
+                  />
+                </>
+              )}
               <VersionHistory 
                 manualId={manualId} 
                 onRestore={() => {
