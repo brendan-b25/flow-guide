@@ -73,26 +73,26 @@ export default function Manuals() {
         <div className="mb-12">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-4xl font-bold text-slate-900 mb-3">Onboarding Manuals</h1>
-              <p className="text-lg text-slate-600">Transform instructions into professional manuals</p>
+              <h1 className="text-4xl font-bold text-slate-900 mb-3">Procedures & Documentation</h1>
+                                  <p className="text-lg text-slate-600">Create step-by-step guides, how-to manuals, and standard operating procedures</p>
             </div>
             <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
               <DialogTrigger asChild>
                 <Button className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/30 h-12 px-6">
                   <Plus className="w-5 h-5 mr-2" />
-                  Create Manual
+                                          New Procedure
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                  <DialogTitle className="text-2xl">Create New Manual</DialogTitle>
+                  <DialogTitle className="text-2xl">Create New Procedure</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-6 pt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="title" className="text-sm font-medium">Manual Title</Label>
-                    <Input
-                      id="title"
-                      placeholder="e.g., Employee Onboarding Guide"
+                    <Label htmlFor="title" className="text-sm font-medium">Procedure Title</Label>
+                                              <Input
+                                                id="title"
+                                                placeholder="e.g., Water Chemistry Guide, Equipment Setup..."
                       value={newManual.title}
                       onChange={(e) => setNewManual({ ...newManual, title: e.target.value })}
                       className="h-11"
@@ -100,9 +100,9 @@ export default function Manuals() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="description" className="text-sm font-medium">Description</Label>
-                    <Textarea
-                      id="description"
-                      placeholder="Brief overview of this manual..."
+                                              <Textarea
+                                                id="description"
+                                                placeholder="What does this procedure cover..."
                       value={newManual.description}
                       onChange={(e) => setNewManual({ ...newManual, description: e.target.value })}
                       className="h-24 resize-none"
@@ -131,7 +131,7 @@ export default function Manuals() {
                     disabled={!newManual.title.trim() || createMutation.isPending}
                     className="w-full h-11 bg-blue-600 hover:bg-blue-700"
                   >
-                    {createMutation.isPending ? 'Creating...' : 'Create Manual'}
+                    {createMutation.isPending ? 'Creating...' : 'Create Procedure'}
                   </Button>
                 </div>
               </DialogContent>
@@ -158,10 +158,10 @@ export default function Manuals() {
               <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
                 <BookOpen className="w-8 h-8 text-blue-600" />
               </div>
-              <h3 className="text-xl font-semibold text-slate-900 mb-2">No manuals yet</h3>
-              <p className="text-slate-600 mb-6 text-center max-w-sm">
-                Start creating your first onboarding manual by clicking the button above
-              </p>
+              <h3 className="text-xl font-semibold text-slate-900 mb-2">No procedures yet</h3>
+                                  <p className="text-slate-600 mb-6 text-center max-w-sm">
+                                    Create your first procedure or how-to guide by clicking the button above
+                                  </p>
             </CardContent>
           </Card>
         ) : (
