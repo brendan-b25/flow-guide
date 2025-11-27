@@ -35,11 +35,21 @@ const SectionEditor = memo(function SectionEditor({
   const debounceRef = useRef(null);
   const textareaRef = useRef(null);
 
-  // Sync with external changes only when section ID changes
+  // Sync with external changes - use a ref to track if user is actively editing
+  const isEditingRef = useRef(false);
+  
   useEffect(() => {
-    setLocalTitle(section.title);
-    setLocalContent(section.content);
-  }, [section.id, section.title, section.content]);
+    // Only sync if user isn't actively editing (prevents glitches)
+    if (!isEditingRef.current) {
+      setLocalTitle(section.title);
+      setLocalContent(section.content);
+    }
+  }, [section.id]);
+  
+  // Reset editing flag when section changes
+  useEffect(() => {
+    isEditingRef.current = false;
+  }, [section.id]);
 
   const debouncedUpdate = useCallback((updates) => {
     if (debounceRef.current) {
@@ -51,12 +61,14 @@ const SectionEditor = memo(function SectionEditor({
   }, [section.id, onUpdate]);
 
   const handleTitleChange = useCallback((e) => {
+    isEditingRef.current = true;
     const value = e.target.value;
     setLocalTitle(value);
     debouncedUpdate({ title: value });
   }, [debouncedUpdate]);
 
   const handleContentChange = useCallback((e) => {
+    isEditingRef.current = true;
     const value = e.target.value;
     setLocalContent(value);
     debouncedUpdate({ content: value });

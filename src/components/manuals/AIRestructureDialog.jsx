@@ -78,23 +78,39 @@ Return the restructured sections with updated content, titles, types, and new or
       });
 
       if (result.sections && result.sections.length > 0) {
-        // Delete old sections
-        for (const section of sections) {
-          await base44.entities.ManualSection.delete(section.id);
-        }
+        // FIRST: Save backup of current state before any changes
+        const backupData = sections.map(s => ({
+          title: s.title,
+          content: s.content,
+          section_type: s.section_type,
+          order: s.order
+        }));
+        
+        await base44.entities.ManualVersion.create({
+          manual_id: manualId,
+          version_type: 'manual_snapshot',
+          snapshot_data: { sections: backupData },
+          change_description: 'Backup before restructure'
+        });
 
-        // Create new restructured sections
+        // Prepare new restructured sections
         const newSections = result.sections.map((section, index) => ({
           manual_id: manualId,
           title: section.title,
           content: section.content,
-          section_type: section.section_type,
+          section_type: section.section_type || 'step',
           order: index
         }));
 
+        // Create new sections FIRST
         await base44.entities.ManualSection.bulkCreate(newSections);
 
-        // Save version
+        // Only delete old sections AFTER new ones are created successfully
+        for (const section of sections) {
+          await base44.entities.ManualSection.delete(section.id);
+        }
+
+        // Save version of new state
         await base44.entities.ManualVersion.create({
           manual_id: manualId,
           version_type: 'manual_snapshot',

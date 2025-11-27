@@ -102,27 +102,43 @@ Always explain what you're doing or suggesting.`;
 
     setIsProcessing(true);
     try {
-      // Delete old sections
+      // FIRST: Save backup of current state before any changes
+      const backupData = sections.map(s => ({
+        title: s.title,
+        content: s.content,
+        section_type: s.section_type,
+        order: s.order
+      }));
+      
+      await base44.entities.ManualVersion.create({
+        manual_id: manualId,
+        version_type: 'manual_snapshot',
+        snapshot_data: { sections: backupData },
+        change_description: 'Backup before AI Chat changes'
+      });
+
+      // Prepare new sections data
+      const newSectionsData = pendingChanges.map((section, index) => ({
+        manual_id: manualId,
+        title: section.title,
+        content: section.content,
+        section_type: section.section_type || 'step',
+        order: index
+      }));
+
+      // Create new sections FIRST
+      await base44.entities.ManualSection.bulkCreate(newSectionsData);
+
+      // Only delete old sections AFTER new ones are created successfully
       for (const section of sections) {
         await base44.entities.ManualSection.delete(section.id);
       }
 
-      // Create new sections
-      const newSections = pendingChanges.map((section, index) => ({
-        manual_id: manualId,
-        title: section.title,
-        content: section.content,
-        section_type: section.section_type,
-        order: index
-      }));
-
-      await base44.entities.ManualSection.bulkCreate(newSections);
-
-      // Save version
+      // Save version of new state
       await base44.entities.ManualVersion.create({
         manual_id: manualId,
         version_type: 'manual_snapshot',
-        snapshot_data: { sections: newSections },
+        snapshot_data: { sections: newSectionsData },
         change_description: 'Changes applied via AI Chat'
       });
 
@@ -135,7 +151,7 @@ Always explain what you're doing or suggesting.`;
       onApplyChanges();
     } catch (error) {
       console.error('Error applying changes:', error);
-      alert('Failed to apply changes.');
+      alert('Failed to apply changes. Your original content is preserved.');
     } finally {
       setIsProcessing(false);
     }
