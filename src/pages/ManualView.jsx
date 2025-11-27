@@ -162,16 +162,19 @@ export default function ManualView() {
               </span>
             </div>
             <div className="space-y-3">
-              {sections.map((section, index) => (
-                <div key={section.id} className="flex items-center gap-3 py-2 border-b border-slate-100">
-                  <span className="text-lg font-medium text-slate-500 w-8">{index + 1}.</span>
-                  <span className="text-2xl">{sectionTypeStyles[section.section_type].icon}</span>
-                  <span className="flex-1 font-medium text-slate-900">{section.title}</span>
-                  <span className="text-xs text-slate-500 uppercase tracking-wider">
-                    {sectionTypeStyles[section.section_type].label}
-                  </span>
-                </div>
-              ))}
+              {sections.map((section, index) => {
+                const tocStyle = sectionTypeStyles[section.section_type] || sectionTypeStyles.step;
+                return (
+                  <div key={section.id} className="flex items-center gap-3 py-2 border-b border-slate-100">
+                    <span className="text-lg font-medium text-slate-500 w-8">{index + 1}.</span>
+                    <span className="text-2xl">{tocStyle.icon}</span>
+                    <span className="flex-1 font-medium text-slate-900">{section.title}</span>
+                    <span className="text-xs text-slate-500 uppercase tracking-wider">
+                      {tocStyle.label}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -179,7 +182,7 @@ export default function ManualView() {
         {/* Sections */}
         <div className="space-y-8">
           {sections.map((section, index) => {
-            const style = sectionTypeStyles[section.section_type];
+            const style = sectionTypeStyles[section.section_type] || sectionTypeStyles.step;
             return (
               <div
                 key={section.id}
