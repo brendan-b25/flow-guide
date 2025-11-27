@@ -181,27 +181,29 @@ export default function ManualEditor() {
 
   const onDragEnd = async (result) => {
     if (!result.destination) return;
+    if (result.source.index === result.destination.index) return;
 
     const items = Array.from(sections);
     const [reorderedItem] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reorderedItem);
 
-    setSections(items);
+    // Update local state with new order values
+    const updatedItems = items.map((item, index) => ({ ...item, order: index }));
+    setSections(updatedItems);
 
-    // Update orders
-    for (let index = 0; index < items.length; index++) {
-      const item = items[index];
-      if (item.order !== index) {
-        await base44.entities.ManualSection.update(item.id, { order: index });
-      }
-    }
+    // Update orders in database
+    const updatePromises = updatedItems.map((item, index) => 
+      base44.entities.ManualSection.update(item.id, { order: index })
+    );
+    
+    await Promise.all(updatePromises);
 
     // Create a snapshot after reordering
     await base44.entities.ManualVersion.create({
       manual_id: manualId,
       version_type: 'manual_snapshot',
       snapshot_data: {
-        sections: items.map(s => ({
+        sections: updatedItems.map(s => ({
           title: s.title,
           content: s.content,
           section_type: s.section_type,
@@ -211,7 +213,6 @@ export default function ManualEditor() {
       change_description: 'Sections reordered'
     });
 
-    queryClient.invalidateQueries(['sections', manualId]);
     queryClient.invalidateQueries(['versions', manualId]);
   };
 
