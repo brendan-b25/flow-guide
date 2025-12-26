@@ -44,7 +44,24 @@ export default function QuickVideoUpload({ onProcedureCreated }) {
     setProgress(0);
     setStatus('Creating procedure...');
 
+    const isVideo = file.type.startsWith('video/');
+    const isAudio = file.type.startsWith('audio/');
+    const estimatedSeconds = isVideo ? 90 : isAudio ? 60 : 45;
+    
+    // Timeout: 3x the estimated time
+    const timeoutMs = estimatedSeconds * 3 * 1000;
+    let timeoutId = null;
+    let timedOut = false;
+
     try {
+      // Set up timeout
+      timeoutId = setTimeout(() => {
+        timedOut = true;
+        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+        if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+        throw new Error('TIMEOUT');
+      }, timeoutMs);
+
       // Create manual first
       const manual = await base44.entities.Manual.create({
         title: title.trim(),
@@ -52,24 +69,30 @@ export default function QuickVideoUpload({ onProcedureCreated }) {
         status: 'draft'
       });
 
+      if (timedOut) return;
+
       setProgress(10);
       setStatus('Uploading video...');
-
-      const isVideo = file.type.startsWith('video/');
-      const isAudio = file.type.startsWith('audio/');
-      const estimatedSeconds = isVideo ? 90 : isAudio ? 60 : 45;
-
       setCountdown(estimatedSeconds);
 
       const uploadStart = Date.now();
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       const uploadTime = (Date.now() - uploadStart) / 1000;
 
+      if (timedOut) return;
+
       setProgress(25);
       setStatus(isVideo || isAudio ? 'Transcribing and analyzing...' : 'Analyzing content...');
 
       countdownIntervalRef.current = setInterval(() => {
-        setCountdown(prev => Math.max(0, prev - 1));
+        setCountdown(prev => {
+          const newVal = prev - 1;
+          if (newVal <= 0) {
+            if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+            return 0;
+          }
+          return newVal;
+        });
       }, 1000);
 
       const adjustedTime = Math.max(estimatedSeconds - uploadTime, 15);
@@ -80,7 +103,7 @@ export default function QuickVideoUpload({ onProcedureCreated }) {
 
       const prompt = `Analyze this ${isVideo ? 'video' : isAudio ? 'audio' : 'document'} and create 5-8 actionable procedure sections. Each needs: title, markdown content, section_type (introduction/step/tip/warning/conclusion). Use metric units, Australian English. Focus on key steps only.`;
 
-      await base44.integrations.Core.InvokeLLM({
+      const result = await base44.integrations.Core.InvokeLLM({
         prompt,
         file_urls: [file_url],
         response_json_schema: {
@@ -104,54 +127,79 @@ export default function QuickVideoUpload({ onProcedureCreated }) {
           },
           required: ["sections"]
         }
-      }).then(async (result) => {
-        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-        if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-
-        setProgress(90);
-        setStatus('Creating sections...');
-
-        if (result.sections && result.sections.length > 0) {
-          const sectionsToCreate = result.sections.map((section, index) => ({
-            manual_id: manual.id,
-            title: section.title,
-            content: section.content,
-            section_type: section.section_type,
-            order: index
-          }));
-
-          await base44.entities.ManualSection.bulkCreate(sectionsToCreate);
-
-          await base44.entities.ManualVersion.create({
-            manual_id: manual.id,
-            version_type: 'manual_snapshot',
-            snapshot_data: { sections: sectionsToCreate },
-            change_description: `Procedure created from ${isVideo ? 'video' : isAudio ? 'audio' : 'file'}: ${file.name}`
-          });
-
-          setProgress(100);
-          setStatus('success');
-          
-          setTimeout(() => {
-            onProcedureCreated(manual.id);
-            setIsOpen(false);
-            setFile(null);
-            setTitle('');
-            setStatus('');
-            setProgress(0);
-          }, 1500);
-        }
       });
+
+      if (timedOut) return;
+
+      // Clear timeout and intervals
+      if (timeoutId) clearTimeout(timeoutId);
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+
+      setProgress(90);
+      setCountdown(0);
+      setStatus('Creating sections...');
+
+      if (result.sections && result.sections.length > 0) {
+        const sectionsToCreate = result.sections.map((section, index) => ({
+          manual_id: manual.id,
+          title: section.title,
+          content: section.content,
+          section_type: section.section_type,
+          order: index
+        }));
+
+        await base44.entities.ManualSection.bulkCreate(sectionsToCreate);
+
+        await base44.entities.ManualVersion.create({
+          manual_id: manual.id,
+          version_type: 'manual_snapshot',
+          snapshot_data: { sections: sectionsToCreate },
+          change_description: `Procedure created from ${isVideo ? 'video' : isAudio ? 'audio' : 'file'}: ${file.name}`
+        });
+
+        setProgress(100);
+        setStatus('success');
+        
+        setTimeout(() => {
+          onProcedureCreated(manual.id);
+          setIsOpen(false);
+          setFile(null);
+          setTitle('');
+          setStatus('');
+          setProgress(0);
+          setCountdown(0);
+        }, 1500);
+      } else {
+        throw new Error('NO_SECTIONS');
+      }
     } catch (error) {
+      // Clean up
+      if (timeoutId) clearTimeout(timeoutId);
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
       
       console.error('Error:', error);
+      
+      let errorMessage = 'An unexpected error occurred. Please try again.';
+      
+      if (error.message === 'TIMEOUT') {
+        errorMessage = `Processing timeout - ${isVideo ? 'video' : isAudio ? 'audio' : 'file'} took too long. Try a shorter file or check your connection.`;
+      } else if (error.message === 'NO_SECTIONS') {
+        errorMessage = 'AI could not extract content from the file. Please ensure the file contains clear spoken content or text.';
+      } else if (error.message?.includes('upload')) {
+        errorMessage = 'File upload failed. Check your internet connection and try again.';
+      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        errorMessage = 'Network error - please check your internet connection and try again.';
+      }
+      
       setStatus('error');
       setProgress(0);
-      alert('Failed to create procedure. Please try again.');
+      setCountdown(0);
+      alert(`❌ ${errorMessage}`);
     } finally {
       setIsProcessing(false);
+      if (timeoutId) clearTimeout(timeoutId);
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
     }

@@ -60,33 +60,53 @@ export default function UploadManualDialog({ manualId, onSectionsCreated }) {
     else if (isAudio) estimatedSeconds = 60;
     else if (isLargeFile) estimatedSeconds = 45;
 
+    // Timeout: 3x the estimated time
+    const timeoutMs = estimatedSeconds * 3 * 1000;
+    let timeoutId = null;
+    let timedOut = false;
+
     setEstimatedTime(estimatedSeconds);
     setCountdown(estimatedSeconds);
 
     try {
+      // Set up timeout
+      timeoutId = setTimeout(() => {
+        timedOut = true;
+        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+        if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+        throw new Error('TIMEOUT');
+      }, timeoutMs);
+
       // Upload file
       setProgress(10);
       const uploadStart = Date.now();
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       const uploadTime = (Date.now() - uploadStart) / 1000;
       
+      if (timedOut) return;
+      
       setProgress(25);
       setStatus(isVideo || isAudio ? 'Transcribing and analyzing...' : 'Analyzing content with AI...');
       
       // Start countdown
       countdownIntervalRef.current = setInterval(() => {
-        setCountdown(prev => Math.max(0, prev - 1));
+        setCountdown(prev => {
+          const newVal = prev - 1;
+          if (newVal <= 0) {
+            if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+            return 0;
+          }
+          return newVal;
+        });
       }, 1000);
 
       // Adjust remaining time based on actual upload speed
       const adjustedTime = Math.max(estimatedSeconds - uploadTime, 15);
       
       // Progress simulation that matches countdown
-      let currentProgress = 25;
       progressIntervalRef.current = setInterval(() => {
         setProgress(prev => {
           const newProgress = Math.min(prev + (60 / adjustedTime), 85);
-          currentProgress = newProgress;
           return newProgress;
         });
       }, 1000);
@@ -94,7 +114,6 @@ export default function UploadManualDialog({ manualId, onSectionsCreated }) {
       // Optimized AI prompt
       const prompt = `Analyze this ${isVideo ? 'video' : isAudio ? 'audio' : 'document'} and create 5-8 actionable procedure sections. Each needs: title, markdown content, section_type (introduction/step/tip/warning/conclusion). Use metric units, Australian English. Focus on key steps only.`;
 
-      const aiStart = Date.now();
       const result = await base44.integrations.Core.InvokeLLM({
         prompt,
         file_urls: [file_url],
@@ -121,15 +140,15 @@ export default function UploadManualDialog({ manualId, onSectionsCreated }) {
         }
       });
 
-      const aiTime = (Date.now() - aiStart) / 1000;
-      console.log(`AI processing completed in ${aiTime.toFixed(1)}s`);
+      if (timedOut) return;
 
-      // Clear intervals
+      // Clear timeout and intervals
+      if (timeoutId) clearTimeout(timeoutId);
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
 
       setProgress(90);
-      setCountdown(3);
+      setCountdown(0);
       setStatus('Creating manual sections...');
 
       // Create sections
@@ -152,7 +171,6 @@ export default function UploadManualDialog({ manualId, onSectionsCreated }) {
         });
 
         setProgress(100);
-        setCountdown(0);
         setStatus('success');
         
         setTimeout(() => {
@@ -163,19 +181,36 @@ export default function UploadManualDialog({ manualId, onSectionsCreated }) {
           setProgress(0);
           setCountdown(0);
         }, 1500);
+      } else {
+        throw new Error('NO_SECTIONS');
       }
     } catch (error) {
-      // Clean up intervals on error
+      // Clean up
+      if (timeoutId) clearTimeout(timeoutId);
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
       
       console.error('Error processing file:', error);
+      
+      let errorMessage = 'An unexpected error occurred. Please try again.';
+      
+      if (error.message === 'TIMEOUT') {
+        errorMessage = `Processing timeout - ${isVideo ? 'video' : isAudio ? 'audio' : 'file'} took too long. Try a shorter file or check your connection.`;
+      } else if (error.message === 'NO_SECTIONS') {
+        errorMessage = 'AI could not extract content from the file. Please ensure the file contains clear spoken content or text.';
+      } else if (error.message?.includes('upload')) {
+        errorMessage = 'File upload failed. Check your internet connection and try again.';
+      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        errorMessage = 'Network error - please check your internet connection and try again.';
+      }
+      
       setStatus('error');
       setProgress(0);
       setCountdown(0);
-      alert(`Failed to process ${file.type.startsWith('video/') ? 'video' : file.type.startsWith('audio/') ? 'audio' : 'document'}. Please try again.`);
+      alert(`❌ ${errorMessage}`);
     } finally {
       setIsProcessing(false);
+      if (timeoutId) clearTimeout(timeoutId);
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
     }
