@@ -2,7 +2,7 @@ import React from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit, Download, Share2 } from 'lucide-react';
+import { ArrowLeft, Edit, Download, Share2, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import ReactMarkdown from 'react-markdown';
@@ -10,6 +10,9 @@ import ReactMarkdown from 'react-markdown';
 export default function ManualView() {
   const urlParams = new URLSearchParams(window.location.search);
   const manualId = urlParams.get('id');
+  const [showSummaries, setShowSummaries] = React.useState(false);
+  const [summaries, setSummaries] = React.useState({});
+  const [isGeneratingSummaries, setIsGeneratingSummaries] = React.useState(false);
 
   const { data: manual } = useQuery({
     queryKey: ['manual', manualId],
@@ -66,6 +69,53 @@ export default function ManualView() {
     window.print();
   };
 
+  const handleGenerateSummaries = async () => {
+    if (sections.length === 0) return;
+    
+    setIsGeneratingSummaries(true);
+    try {
+      const prompt = `Generate concise one-sentence summaries for each section of this manual. Each summary should capture the main point or action.
+
+Sections:
+${sections.map((s, idx) => `${idx + 1}. ${s.title}\n${s.content.substring(0, 300)}...\n`).join('\n')}
+
+Return a summary for each section that is clear, actionable, and under 20 words.`;
+
+      const result = await base44.integrations.Core.InvokeLLM({
+        prompt,
+        response_json_schema: {
+          type: "object",
+          properties: {
+            summaries: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  section_index: { type: "number" },
+                  summary: { type: "string" }
+                },
+                required: ["section_index", "summary"]
+              }
+            }
+          },
+          required: ["summaries"]
+        }
+      });
+
+      const summariesMap = {};
+      result.summaries.forEach(item => {
+        summariesMap[item.section_index] = item.summary;
+      });
+      setSummaries(summariesMap);
+      setShowSummaries(true);
+    } catch (error) {
+      console.error('Error generating summaries:', error);
+      alert('Failed to generate summaries. Please try again.');
+    } finally {
+      setIsGeneratingSummaries(false);
+    }
+  };
+
   if (!manual) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -95,6 +145,26 @@ export default function ManualView() {
               </div>
             </div>
             <div className="flex gap-2">
+              {Object.keys(summaries).length === 0 ? (
+                <Button 
+                  variant="outline" 
+                  onClick={handleGenerateSummaries}
+                  disabled={isGeneratingSummaries || sections.length === 0}
+                  className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  {isGeneratingSummaries ? 'Generating...' : 'AI Summaries'}
+                </Button>
+              ) : (
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowSummaries(!showSummaries)}
+                  className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  {showSummaries ? 'Hide' : 'Show'} Summaries
+                </Button>
+              )}
               <Button variant="outline" onClick={handlePrint}>
                 <Download className="w-4 h-4 mr-2" />
                 Print
@@ -165,13 +235,20 @@ export default function ManualView() {
               {sections.map((section, index) => {
                 const tocStyle = sectionTypeStyles[section.section_type] || sectionTypeStyles.step;
                 return (
-                  <div key={section.id} className="flex items-center gap-3 py-2 border-b border-slate-100">
-                    <span className="text-lg font-medium text-slate-500 w-8">{index + 1}.</span>
-                    <span className="text-2xl">{tocStyle.icon}</span>
-                    <span className="flex-1 font-medium text-slate-900">{section.title}</span>
-                    <span className="text-xs text-slate-500 uppercase tracking-wider">
-                      {tocStyle.label}
-                    </span>
+                  <div key={section.id} className="py-2 border-b border-slate-100">
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg font-medium text-slate-500 w-8">{index + 1}.</span>
+                      <span className="text-2xl">{tocStyle.icon}</span>
+                      <span className="flex-1 font-medium text-slate-900">{section.title}</span>
+                      <span className="text-xs text-slate-500 uppercase tracking-wider">
+                        {tocStyle.label}
+                      </span>
+                    </div>
+                    {showSummaries && summaries[index] && (
+                      <div className="ml-16 mt-1 text-sm text-slate-600 italic">
+                        {summaries[index]}
+                      </div>
+                    )}
                   </div>
                 );
               })}
