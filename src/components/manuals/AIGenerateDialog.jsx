@@ -14,21 +14,49 @@ export default function AIGenerateDialog({ manualId, onSectionsGenerated }) {
   const [topic, setTopic] = useState('');
   const [tone, setTone] = useState('professional');
   const [additionalContext, setAdditionalContext] = useState('');
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleFileUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    setIsUploading(true);
+    try {
+      const uploadPromises = files.map(file => base44.integrations.Core.UploadFile({ file }));
+      const results = await Promise.all(uploadPromises);
+      const fileUrls = results.map(r => r.file_url);
+      setUploadedFiles(prev => [...prev, ...fileUrls]);
+    } catch (error) {
+      console.error('Error uploading files:', error);
+      alert('Failed to upload files. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleGenerate = async () => {
     if (!topic.trim()) return;
 
     setIsGenerating(true);
     try {
-      const prompt = `You are an expert technical writer creating onboarding manual sections.
+      const prompt = `You are an expert technical writer creating clear, professional procedure documentation optimized for A4 printing.
 
 Topic: ${topic}
 Tone: ${tone}
 ${additionalContext ? `Additional Context: ${additionalContext}` : ''}
+${uploadedFiles.length > 0 ? 'Files attached with additional context (video/audio transcripts or documents).' : ''}
 
-Generate 5-8 comprehensive sections for this onboarding manual. Each section should be detailed and practical.
+Generate 5-8 comprehensive sections for this procedure manual. Each section should be:
+- Clear and simple, easy to follow
+- Professional and actionable
+- Suitable for printing on A4 paper (concise paragraphs, clear headings)
+- Step-by-step where applicable
 
-IMPORTANT: All measurements must be in metric units (metres, centimetres, millimetres, kilograms, litres, Celsius, etc.). Use Australian English spelling throughout.
+IMPORTANT: 
+- All measurements in metric units (metres, centimetres, millimetres, kilograms, litres, Celsius)
+- Australian English spelling throughout
+- Keep content printer-friendly (avoid overly long paragraphs)
 
 For each section, determine the most appropriate type:
 - "introduction": For opening/overview sections
@@ -37,10 +65,11 @@ For each section, determine the most appropriate type:
 - "warning": For important cautions or things to avoid
 - "conclusion": For closing/summary sections
 
-Make the content detailed, actionable, and easy to follow. Use markdown formatting for better readability (bullet points, bold text, etc.).`;
+Use markdown formatting for better readability (bullet points, bold text, numbered lists, etc.).`;
 
       const result = await base44.integrations.Core.InvokeLLM({
         prompt,
+        file_urls: uploadedFiles.length > 0 ? uploadedFiles : undefined,
         response_json_schema: {
           type: "object",
           properties: {
@@ -80,6 +109,7 @@ Make the content detailed, actionable, and easy to follow. Use markdown formatti
         setIsOpen(false);
         setTopic('');
         setAdditionalContext('');
+        setUploadedFiles([]);
       }
     } catch (error) {
       console.error('Error generating sections:', error);
@@ -147,6 +177,41 @@ Make the content detailed, actionable, and easy to follow. Use markdown formatti
               onChange={(e) => setAdditionalContext(e.target.value)}
               className="h-24 resize-none"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="files" className="text-sm font-medium">
+              Upload Files (Optional)
+            </Label>
+            <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 hover:border-purple-400 transition-colors">
+              <input
+                id="files"
+                type="file"
+                multiple
+                accept="video/*,audio/*,.pdf,.doc,.docx,.txt"
+                onChange={handleFileUpload}
+                className="hidden"
+                disabled={isUploading}
+              />
+              <label htmlFor="files" className="cursor-pointer block text-center">
+                {isUploading ? (
+                  <div className="text-sm text-slate-600">
+                    <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
+                    Uploading...
+                  </div>
+                ) : uploadedFiles.length > 0 ? (
+                  <div className="text-sm">
+                    <p className="text-green-700 font-medium mb-1">✓ {uploadedFiles.length} file(s) uploaded</p>
+                    <p className="text-xs text-slate-500">Click to add more</p>
+                  </div>
+                ) : (
+                  <div className="text-sm text-slate-600">
+                    <p className="font-medium mb-1">📎 Upload video, audio, or documents</p>
+                    <p className="text-xs text-slate-500">AI will analyze content for context</p>
+                  </div>
+                )}
+              </label>
+            </div>
           </div>
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">

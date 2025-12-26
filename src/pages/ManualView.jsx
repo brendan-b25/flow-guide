@@ -244,9 +244,22 @@ export default function ManualView() {
       {/* Print Styles */}
       <style>{`
         @media print {
+          @page {
+            size: A4;
+            margin: 20mm 15mm;
+          }
+
           body {
             background: white;
+            font-size: 11pt;
+            line-height: 1.4;
           }
+
+          * {
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+          }
+
           .print\\:hidden {
             display: none !important;
           }
@@ -258,12 +271,35 @@ export default function ManualView() {
           }
           .print\\:break-after-page {
             break-after: page;
+            page-break-after: always;
           }
           .print\\:break-inside-avoid {
             break-inside: avoid;
+            page-break-inside: avoid;
           }
           .print\\:break-before-page {
             break-before: page;
+            page-break-before: always;
+          }
+
+          /* Optimize text for A4 printing */
+          h1 { font-size: 22pt; margin-bottom: 8pt; }
+          h2 { font-size: 16pt; margin-bottom: 6pt; }
+          h3 { font-size: 14pt; margin-bottom: 4pt; }
+          p { margin-bottom: 8pt; orphans: 3; widows: 3; }
+          ul, ol { margin-bottom: 8pt; }
+          li { orphans: 3; widows: 3; }
+
+          /* Prevent awkward breaks */
+          h1, h2, h3 {
+            page-break-after: avoid;
+            break-after: avoid;
+          }
+
+          /* Ensure images fit on A4 */
+          img {
+            max-width: 100%;
+            page-break-inside: avoid;
           }
         }
       `}</style>
