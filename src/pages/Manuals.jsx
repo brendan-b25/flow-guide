@@ -8,12 +8,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, BookOpen, FileText, Edit, Trash2, Eye, Search, Sparkles } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import QuickVideoUpload from '../components/manuals/QuickVideoUpload';
 
 export default function Manuals() {
+  const navigate = useNavigate();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [newManual, setNewManual] = useState({
@@ -84,7 +86,14 @@ export default function Manuals() {
               <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-2">Procedures & Documentation</h1>
               <p className="text-base sm:text-lg text-slate-600">Create step-by-step guides and how-to manuals</p>
             </div>
-            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <div className="flex gap-2 flex-wrap">
+              <QuickVideoUpload 
+                onProcedureCreated={(manualId) => {
+                  queryClient.invalidateQueries(['manuals']);
+                  navigate(createPageUrl('ManualEditor') + `?id=${manualId}`);
+                }}
+              />
+              <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
               <DialogTrigger asChild>
                 <Button className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/30 h-12 px-6 w-full sm:w-auto">
                   <Plus className="w-5 h-5 mr-2" />
@@ -142,9 +151,10 @@ export default function Manuals() {
                     {createMutation.isPending ? 'Creating...' : 'Create Procedure'}
                   </Button>
                 </div>
-              </DialogContent>
-            </Dialog>
-          </div>
+                </DialogContent>
+                </Dialog>
+                </div>
+                </div>
 
           {/* Search Bar */}
           {manuals.length > 0 && (
