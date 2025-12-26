@@ -11,6 +11,7 @@ export default function UploadManualDialog({ manualId, onSectionsCreated }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [file, setFile] = useState(null);
   const [status, setStatus] = useState('');
+  const [progress, setProgress] = useState(0);
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files?.[0];
@@ -24,28 +25,24 @@ export default function UploadManualDialog({ manualId, onSectionsCreated }) {
     if (!file) return;
 
     setIsProcessing(true);
+    setProgress(0);
     setStatus('Uploading file...');
 
     try {
-      // Upload file
+      // Upload file with progress
+      setProgress(10);
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       
-      setStatus('Processing document with AI...');
+      setProgress(30);
+      setStatus('Analyzing content with AI...');
+      
+      // Simulate progress during AI processing
+      const progressInterval = setInterval(() => {
+        setProgress(prev => Math.min(prev + 5, 85));
+      }, 1000);
 
-      // Use AI to extract and structure content
-      const prompt = `You are an expert at analyzing documents and converting them into structured onboarding manual sections.
-
-Analyze the uploaded document and extract all relevant information to create comprehensive manual sections.
-
-For each logical section or topic in the document:
-- Create a clear, descriptive title
-- Extract and organize the content
-- Determine the most appropriate section type (introduction, step, tip, warning, or conclusion)
-- Ensure the content is clear, actionable, and well-formatted using markdown
-
-Create 5-15 sections depending on the document length and complexity.
-
-IMPORTANT: Convert all measurements to metric units (metres, centimetres, millimetres, kilograms, litres, Celsius, etc.). Use Australian English spelling throughout.`;
+      // Simplified, faster AI prompt
+      const prompt = `Extract key information from this document and create 5-10 clear procedure sections. Each section needs a title, content (using markdown), and type (introduction/step/tip/warning/conclusion). Use metric units and Australian English. Be concise and focus on actionable steps.`;
 
       const result = await base44.integrations.Core.InvokeLLM({
         prompt,
@@ -73,6 +70,8 @@ IMPORTANT: Convert all measurements to metric units (metres, centimetres, millim
         }
       });
 
+      clearInterval(progressInterval);
+      setProgress(90);
       setStatus('Creating manual sections...');
 
       // Create sections
@@ -95,12 +94,14 @@ IMPORTANT: Convert all measurements to metric units (metres, centimetres, millim
           change_description: `Sections created from uploaded file: ${file.name}`
         });
 
+        setProgress(100);
         setStatus('success');
         setTimeout(() => {
           onSectionsCreated();
           setIsOpen(false);
           setFile(null);
           setStatus('');
+          setProgress(0);
         }, 1500);
       }
     } catch (error) {
@@ -137,7 +138,7 @@ IMPORTANT: Convert all measurements to metric units (metres, centimetres, millim
                 id="file"
                 type="file"
                 onChange={handleFileChange}
-                accept=".pdf,.doc,.docx,.txt"
+                accept=".pdf,.doc,.docx,.txt,video/*,audio/*"
                 className="hidden"
               />
               <label htmlFor="file" className="cursor-pointer">
@@ -153,7 +154,7 @@ IMPORTANT: Convert all measurements to metric units (metres, centimetres, millim
                   <div>
                     <p className="font-medium text-slate-900">Click to upload</p>
                     <p className="text-sm text-slate-500 mt-1">
-                      PDF, DOC, DOCX, or TXT
+                      Documents, Videos, or Audio
                     </p>
                   </div>
                 )}
@@ -162,9 +163,23 @@ IMPORTANT: Convert all measurements to metric units (metres, centimetres, millim
           </div>
 
           {status && status !== 'success' && status !== 'error' && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
-              <Loader2 className="w-5 h-5 text-blue-600 animate-spin flex-shrink-0" />
-              <p className="text-sm text-blue-900">{status}</p>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+              <div className="flex items-center gap-3">
+                <Loader2 className="w-5 h-5 text-blue-600 animate-spin flex-shrink-0" />
+                <p className="text-sm text-blue-900 font-medium">{status}</p>
+              </div>
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-blue-700">
+                  <span>Progress</span>
+                  <span>{progress}%</span>
+                </div>
+                <div className="h-2 bg-blue-100 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-blue-600 transition-all duration-300 ease-out"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
             </div>
           )}
 
