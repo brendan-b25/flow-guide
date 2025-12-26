@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MessageCircle, Loader2, Send, Check, X, Bot, User } from 'lucide-react';
+import { MessageCircle, Loader2, Send, Check, X, Bot, User, Plus } from 'lucide-react';
 
 export default function ManualAIChatDialog({ manualId, manual, sections, onApplyChanges }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -12,6 +12,7 @@ export default function ManualAIChatDialog({ manualId, manual, sections, onApply
   const [message, setMessage] = useState('');
   const [conversation, setConversation] = useState([]);
   const [pendingChanges, setPendingChanges] = useState(null);
+  const [pendingAdditions, setPendingAdditions] = useState(null);
 
   const handleSend = async () => {
     if (!message.trim()) return;
@@ -45,11 +46,13 @@ IMPORTANT RULES:
 - Use Australian English spelling (colour, organisation, metre, etc.)
 - Maintain professional quality
 - If the user asks a question, answer it helpfully
-- If the user requests changes, provide the modified sections
+- If the user requests changes to existing sections, provide modified_sections
+- If the user asks to ADD new content/steps/procedures, provide new_sections to add
 
 Respond with either:
 1. A helpful answer if it's a question
-2. Modified sections if changes are requested
+2. Modified sections if changes to existing content are requested (has_changes: true, modified_sections)
+3. New sections to add if user wants to add content (has_additions: true, new_sections)
 
 Always explain what you're doing or suggesting.`;
 
@@ -60,7 +63,20 @@ Always explain what you're doing or suggesting.`;
           properties: {
             response_text: { type: "string" },
             has_changes: { type: "boolean" },
+            has_additions: { type: "boolean" },
             modified_sections: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  content: { type: "string" },
+                  section_type: { type: "string" }
+                },
+                required: ["title", "content", "section_type"]
+              }
+            },
+            new_sections: {
               type: "array",
               items: {
                 type: "object",
@@ -73,18 +89,23 @@ Always explain what you're doing or suggesting.`;
               }
             }
           },
-          required: ["response_text", "has_changes"]
+          required: ["response_text"]
         }
       });
 
       setConversation(prev => [...prev, { 
         role: 'assistant', 
         content: result.response_text,
-        hasChanges: result.has_changes
+        hasChanges: result.has_changes,
+        hasAdditions: result.has_additions
       }]);
 
       if (result.has_changes && result.modified_sections) {
         setPendingChanges(result.modified_sections);
+      }
+      
+      if (result.has_additions && result.new_sections) {
+        setPendingAdditions(result.new_sections);
       }
     } catch (error) {
       console.error('Error:', error);
@@ -157,10 +178,53 @@ Always explain what you're doing or suggesting.`;
     }
   };
 
+  const handleAddSections = async () => {
+    if (!pendingAdditions) return;
+
+    setIsProcessing(true);
+    try {
+      // Get current max order
+      const maxOrder = sections.length > 0 ? Math.max(...sections.map(s => s.order || 0)) : -1;
+      
+      // Create new sections at the end
+      const newSections = pendingAdditions.map((section, index) => ({
+        manual_id: manualId,
+        title: section.title,
+        content: section.content,
+        section_type: section.section_type || 'step',
+        order: maxOrder + 1 + index
+      }));
+
+      await base44.entities.ManualSection.bulkCreate(newSections);
+
+      // Save version
+      await base44.entities.ManualVersion.create({
+        manual_id: manualId,
+        version_type: 'manual_snapshot',
+        snapshot_data: { sections: newSections },
+        change_description: `Added ${newSections.length} new sections via AI Chat`
+      });
+
+      setPendingAdditions(null);
+      setConversation(prev => [...prev, { 
+        role: 'system', 
+        content: `✅ ${newSections.length} new sections added successfully!` 
+      }]);
+      
+      onApplyChanges();
+    } catch (error) {
+      console.error('Error adding sections:', error);
+      alert('Failed to add sections.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleClose = () => {
     setIsOpen(false);
     setConversation([]);
     setPendingChanges(null);
+    setPendingAdditions(null);
     setMessage('');
   };
 
@@ -233,7 +297,7 @@ Always explain what you're doing or suggesting.`;
         {pendingChanges && (
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-center justify-between">
             <p className="text-sm text-amber-900">
-              <strong>Changes ready</strong> - {pendingChanges.length} sections modified
+              <strong>Changes ready</strong> - {pendingChanges.length} sections will be modified
             </p>
             <div className="flex gap-2">
               <Button
@@ -249,6 +313,33 @@ Always explain what you're doing or suggesting.`;
                 size="sm"
                 variant="outline"
                 onClick={() => setPendingChanges(null)}
+              >
+                <X className="w-4 h-4 mr-1" />
+                Dismiss
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {pendingAdditions && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center justify-between">
+            <p className="text-sm text-blue-900">
+              <strong>New sections ready</strong> - {pendingAdditions.length} sections will be added
+            </p>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={handleAddSections}
+                disabled={isProcessing}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Add
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setPendingAdditions(null)}
               >
                 <X className="w-4 h-4 mr-1" />
                 Dismiss
