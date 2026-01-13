@@ -126,21 +126,20 @@ export default function UploadManualDialog({ manualId, onSectionsCreated }) {
         });
       }, 1000);
 
-      // Optimized AI prompt with image extraction
+      // Optimized AI prompt
       const prompt = `Analyze this ${isVideo ? 'video' : isAudio ? 'audio' : 'document'} and create 5-8 actionable procedure sections. 
 
-IMPORTANT: If the document contains any images, photos, diagrams, or visual content:
-1. Extract the image URLs from the document
-2. Include them in the relevant section's images array
-3. Reference the images in the content with descriptions like "See image" or "Refer to diagram"
+IMPORTANT FOR IMAGES: If the document contains images, diagrams, or photos:
+- Describe them clearly in the content with markdown like: **[IMAGE: Description of what the image shows]**
+- Note where images should appear in the workflow
+- The user will need to manually upload these images later
 
 Each section needs:
-- title: Clear, descriptive title
-- content: Detailed markdown content with step-by-step instructions
+- title: Clear, descriptive title  
+- content: Detailed markdown with step-by-step instructions. For any images in the document, include **[IMAGE: detailed description]** markers
 - section_type: introduction/step/tip/warning/conclusion
-- images: Array of image URLs from the document (if any exist in that section)
 
-Use metric units, Australian English. Focus on key steps and preserve all visual content.`;
+Use metric units, Australian English. Focus on key steps and note where visuals should be added.`;
 
       const result = await base44.integrations.Core.InvokeLLM({
         prompt,
@@ -158,10 +157,6 @@ Use metric units, Australian English. Focus on key steps and preserve all visual
                   section_type: {
                     type: "string",
                     enum: ["introduction", "step", "tip", "warning", "conclusion"]
-                  },
-                  images: {
-                    type: "array",
-                    items: { type: "string" }
                   }
                 },
                 required: ["title", "content", "section_type"]
@@ -181,13 +176,13 @@ Use metric units, Australian English. Focus on key steps and preserve all visual
 
         setCountdown(0);
 
-        // Store sections with images
+        // Store sections
         if (result.sections && result.sections.length > 0) {
           allSections.push(...result.sections.map((section) => ({
             title: section.title,
             content: section.content,
             section_type: section.section_type,
-            images: section.images || []
+            images: []
           })));
         }
       } catch (error) {
@@ -396,10 +391,12 @@ Use metric units, Australian English. Focus on key steps and preserve all visual
             </div>
           )}
 
-          <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-2">
             <p className="text-sm text-slate-700">
-              <strong>📄 AI will:</strong> Analyze your document, extract all relevant content, 
-              and automatically create organized manual sections with appropriate formatting.
+              <strong>📄 AI will:</strong> Analyze your document and create organized sections with appropriate formatting.
+            </p>
+            <p className="text-xs text-slate-600">
+              <strong>Note:</strong> Embedded images will be marked with placeholders - you can upload them manually using the image upload button in each section.
             </p>
           </div>
 

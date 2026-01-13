@@ -256,9 +256,21 @@ export default function ManualEditor() {
                   <ArrowLeft className="w-5 h-5" />
                 </Button>
               </Link>
-              <div>
-                <h1 className="text-3xl font-bold text-slate-900">{manual.title}</h1>
-                <p className="text-slate-600 mt-1">{manual.description}</p>
+              <div className="flex-1">
+                <input
+                  type="text"
+                  value={manual.title}
+                  onChange={(e) => updateManualMutation.mutate({ id: manualId, data: { title: e.target.value } })}
+                  className="text-3xl font-bold text-slate-900 bg-transparent border-none outline-none focus:ring-2 focus:ring-blue-200 rounded px-2 py-1 -ml-2 w-full"
+                  placeholder="Procedure Title"
+                />
+                <input
+                  type="text"
+                  value={manual.description || ''}
+                  onChange={(e) => updateManualMutation.mutate({ id: manualId, data: { description: e.target.value } })}
+                  className="text-slate-600 mt-1 bg-transparent border-none outline-none focus:ring-2 focus:ring-blue-200 rounded px-2 py-1 -ml-2 w-full"
+                  placeholder="Add description..."
+                />
               </div>
             </div>
             <div className="flex gap-2 flex-wrap">
