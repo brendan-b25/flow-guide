@@ -15,6 +15,7 @@ export default function UploadManualDialog({ manualId, onSectionsCreated }) {
   const [estimatedTime, setEstimatedTime] = useState(0);
   const [countdown, setCountdown] = useState(0);
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
+  const [failedFiles, setFailedFiles] = useState([]);
   const progressIntervalRef = useRef(null);
   const countdownIntervalRef = useRef(null);
 
@@ -54,6 +55,7 @@ export default function UploadManualDialog({ manualId, onSectionsCreated }) {
     setIsProcessing(true);
     setProgress(0);
     setCurrentFileIndex(0);
+    setFailedFiles([]);
     
     const allSections = [];
 
@@ -194,7 +196,19 @@ Use metric units, Australian English. Focus on key steps and preserve all visual
         if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
         
         console.error(`Error processing file ${file.name}:`, error);
-        alert(`Failed to process ${file.name}. Continuing with remaining files...`);
+        
+        let errorReason = 'Unknown error';
+        if (error.message === 'TIMEOUT') {
+          errorReason = 'Processing timed out - file may be too large or complex';
+        } else if (error.message?.includes('format')) {
+          errorReason = 'Unsupported file format';
+        } else if (error.message?.includes('size')) {
+          errorReason = 'File too large';
+        } else {
+          errorReason = error.message || 'Processing failed';
+        }
+        
+        setFailedFiles(prev => [...prev, { name: file.name, reason: errorReason }]);
       }
     }
 
@@ -232,6 +246,7 @@ Use metric units, Australian English. Focus on key steps and preserve all visual
           setStatus('');
           setProgress(0);
           setCountdown(0);
+          setFailedFiles([]);
         }, 1500);
       } else {
         throw new Error('NO_SECTIONS');
@@ -362,6 +377,22 @@ Use metric units, Australian English. Focus on key steps and preserve all visual
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
               <div className="w-5 h-5 text-red-600 flex-shrink-0">✕</div>
               <p className="text-sm text-red-900 font-medium">Processing failed. Please try again.</p>
+            </div>
+          )}
+
+          {failedFiles.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-2">
+              <p className="text-sm font-semibold text-amber-900">
+                ⚠️ {failedFiles.length} file(s) failed to process:
+              </p>
+              <div className="space-y-1 max-h-32 overflow-y-auto">
+                {failedFiles.map((f, idx) => (
+                  <div key={idx} className="text-xs text-amber-800 bg-amber-100 rounded px-2 py-1">
+                    <div className="font-medium truncate">{f.name}</div>
+                    <div className="text-amber-700">{f.reason}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
