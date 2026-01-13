@@ -46,10 +46,22 @@ export default function QuickVideoUpload({ onProcedureCreated }) {
 
     const isVideo = file.type.startsWith('video/');
     const isAudio = file.type.startsWith('audio/');
-    const estimatedSeconds = isVideo ? 90 : isAudio ? 60 : 45;
+    const fileSizeMB = file.size / 1024 / 1024;
     
-    // Timeout: 3x the estimated time
-    const timeoutMs = estimatedSeconds * 3 * 1000;
+    // Dynamic timeout based on file size
+    let estimatedSeconds = 60;
+    if (isVideo) {
+      if (fileSizeMB > 100) estimatedSeconds = 300; // 5 min for large videos
+      else if (fileSizeMB > 50) estimatedSeconds = 180; // 3 min
+      else estimatedSeconds = 120; // 2 min
+    } else if (isAudio) {
+      if (fileSizeMB > 50) estimatedSeconds = 180;
+      else if (fileSizeMB > 20) estimatedSeconds = 120;
+      else estimatedSeconds = 90;
+    }
+    
+    // Generous timeout: 4x estimated time (min 5 minutes for large files)
+    const timeoutMs = Math.max(estimatedSeconds * 4 * 1000, fileSizeMB > 50 ? 300000 : 180000);
     let timeoutId = null;
     let timedOut = false;
 
@@ -101,7 +113,19 @@ export default function QuickVideoUpload({ onProcedureCreated }) {
         setProgress(prev => Math.min(prev + (60 / adjustedTime), 85));
       }, 1000);
 
-      const prompt = `Analyze this ${isVideo ? 'video' : isAudio ? 'audio' : 'document'} and create 5-8 actionable procedure sections. Each needs: title, markdown content, section_type (introduction/step/tip/warning/conclusion). Use metric units, Australian English. Focus on key steps only.`;
+      const prompt = `Transcribe and analyze this ${isVideo ? 'video' : isAudio ? 'audio recording' : 'document'} thoroughly. Extract ALL spoken instructions, demonstrations, and explanations.
+
+Create 6-10 comprehensive procedure sections covering everything demonstrated. For each section provide:
+- title: Clear, specific title
+- content: Detailed markdown content with step-by-step instructions from the transcribed audio/video
+- section_type: introduction/step/tip/warning/conclusion
+
+IMPORTANT: 
+- Transcribe all spoken content first, then structure it into logical sections
+- Include all details mentioned in the audio/narration
+- For videos, describe what's being shown AND what's being said
+- Use metric units, Australian English
+- Focus on actionable steps with complete details`;
 
       const result = await base44.integrations.Core.InvokeLLM({
         prompt,
@@ -184,13 +208,15 @@ export default function QuickVideoUpload({ onProcedureCreated }) {
       let errorMessage = 'An unexpected error occurred. Please try again.';
       
       if (error.message === 'TIMEOUT') {
-        errorMessage = `Processing timeout - ${isVideo ? 'video' : isAudio ? 'audio' : 'file'} took too long. Try a shorter file or check your connection.`;
+        errorMessage = `Processing timeout - large ${isVideo ? 'video' : isAudio ? 'audio' : 'file'} (${fileSizeMB.toFixed(1)}MB) exceeded time limit. Try compressing the file or splitting it into smaller segments.`;
       } else if (error.message === 'NO_SECTIONS') {
-        errorMessage = 'AI could not extract content from the file. Please ensure the file contains clear spoken content or text.';
+        errorMessage = 'AI could not extract content from the file. Ensure the file contains clear spoken audio or narration.';
       } else if (error.message?.includes('upload')) {
-        errorMessage = 'File upload failed. Check your internet connection and try again.';
+        errorMessage = 'File upload failed. Large files may take longer - check your connection and try again.';
       } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
-        errorMessage = 'Network error - please check your internet connection and try again.';
+        errorMessage = 'Network error - large file upload interrupted. Check your internet and try again.';
+      } else if (error.message?.includes('size') || error.message?.includes('too large')) {
+        errorMessage = 'File is too large. Please compress or split the video into smaller files (recommended: under 100MB per file).';
       }
       
       setStatus('error');
@@ -310,9 +336,12 @@ export default function QuickVideoUpload({ onProcedureCreated }) {
             </div>
           )}
 
-          <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-2">
             <p className="text-sm text-slate-700">
-              <strong>🎥 AI will:</strong> Analyze your video, transcribe content, and create a complete procedure with organized sections automatically.
+              <strong>🎥 AI will:</strong> Transcribe all audio, analyze demonstrations, and create a complete procedure with detailed sections automatically.
+            </p>
+            <p className="text-xs text-slate-600">
+              <strong>Large files:</strong> Videos up to 200MB supported. Processing time: ~2-5 minutes for large files. Ensure clear audio for best results.
             </p>
           </div>
 
