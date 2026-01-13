@@ -111,8 +111,21 @@ export default function UploadManualDialog({ manualId, onSectionsCreated }) {
         });
       }, 1000);
 
-      // Optimized AI prompt
-      const prompt = `Analyze this ${isVideo ? 'video' : isAudio ? 'audio' : 'document'} and create 5-8 actionable procedure sections. Each needs: title, markdown content, section_type (introduction/step/tip/warning/conclusion). Use metric units, Australian English. Focus on key steps only.`;
+      // Optimized AI prompt with image extraction
+      const prompt = `Analyze this ${isVideo ? 'video' : isAudio ? 'audio' : 'document'} and create 5-8 actionable procedure sections. 
+
+IMPORTANT: If the document contains any images, photos, diagrams, or visual content:
+1. Extract the image URLs from the document
+2. Include them in the relevant section's images array
+3. Reference the images in the content with descriptions like "See image" or "Refer to diagram"
+
+Each section needs:
+- title: Clear, descriptive title
+- content: Detailed markdown content with step-by-step instructions
+- section_type: introduction/step/tip/warning/conclusion
+- images: Array of image URLs from the document (if any exist in that section)
+
+Use metric units, Australian English. Focus on key steps and preserve all visual content.`;
 
       const result = await base44.integrations.Core.InvokeLLM({
         prompt,
@@ -130,6 +143,10 @@ export default function UploadManualDialog({ manualId, onSectionsCreated }) {
                   section_type: {
                     type: "string",
                     enum: ["introduction", "step", "tip", "warning", "conclusion"]
+                  },
+                  images: {
+                    type: "array",
+                    items: { type: "string" }
                   }
                 },
                 required: ["title", "content", "section_type"]
@@ -151,13 +168,14 @@ export default function UploadManualDialog({ manualId, onSectionsCreated }) {
       setCountdown(0);
       setStatus('Creating manual sections...');
 
-      // Create sections
+      // Create sections with images
       if (result.sections && result.sections.length > 0) {
         const sectionsToCreate = result.sections.map((section, index) => ({
           manual_id: manualId,
           title: section.title,
           content: section.content,
           section_type: section.section_type,
+          images: section.images || [],
           order: index
         }));
 

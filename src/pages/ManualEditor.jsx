@@ -13,6 +13,8 @@ import SectionEditor from '../components/manuals/SectionEditor';
 import AIRestructureDialog from '../components/manuals/AIRestructureDialog';
 import StyleDialog from '../components/manuals/StyleDialog';
 import ManualAIChatDialog from '../components/manuals/ManualAIChatDialog';
+import AIStepBuilder from '../components/manuals/AIStepBuilder';
+import BrandingDialog from '../components/manuals/BrandingDialog';
 
 export default function ManualEditor() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -245,6 +247,7 @@ export default function ManualEditor() {
               </div>
             </div>
             <div className="flex gap-2 flex-wrap">
+              <BrandingDialog manualId={manualId} />
               <ManualAIChatDialog
                 manualId={manualId}
                 manual={manual}
@@ -294,6 +297,10 @@ export default function ManualEditor() {
                     upload an existing document, or create sections manually from scratch.
                   </p>
                   <div className="flex gap-3 flex-wrap">
+                    <AIStepBuilder 
+                      manualId={manualId} 
+                      onComplete={handleSectionsGenerated}
+                    />
                     <AIGenerateDialog 
                       manualId={manualId} 
                       onSectionsGenerated={handleSectionsGenerated}
@@ -358,6 +365,10 @@ export default function ManualEditor() {
           </Button>
           {sections.length > 0 && (
             <div className="flex gap-2">
+              <AIStepBuilder 
+                manualId={manualId} 
+                onComplete={handleSectionsGenerated}
+              />
               <AIGenerateDialog 
                 manualId={manualId} 
                 onSectionsGenerated={handleSectionsGenerated}
