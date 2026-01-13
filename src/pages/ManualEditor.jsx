@@ -22,8 +22,12 @@ export default function ManualEditor() {
   const manualId = urlParams.get('id');
 
   const [sections, setSections] = useState([]);
+  const [localTitle, setLocalTitle] = useState('');
+  const [localDescription, setLocalDescription] = useState('');
   const queryClient = useQueryClient();
   const pendingUpdates = useRef({});
+  const titleTimeoutRef = useRef(null);
+  const descTimeoutRef = useRef(null);
 
   const { data: manual } = useQuery({
     queryKey: ['manual', manualId],
@@ -52,9 +56,32 @@ export default function ManualEditor() {
     });
   };
 
+  const handleTitleChange = (value) => {
+    setLocalTitle(value);
+    if (titleTimeoutRef.current) clearTimeout(titleTimeoutRef.current);
+    titleTimeoutRef.current = setTimeout(() => {
+      updateManualMutation.mutate({ id: manualId, data: { title: value } });
+    }, 800);
+  };
+
+  const handleDescriptionChange = (value) => {
+    setLocalDescription(value);
+    if (descTimeoutRef.current) clearTimeout(descTimeoutRef.current);
+    descTimeoutRef.current = setTimeout(() => {
+      updateManualMutation.mutate({ id: manualId, data: { description: value } });
+    }, 800);
+  };
+
   useEffect(() => {
     setSections(sectionsData);
   }, [sectionsData]);
+
+  useEffect(() => {
+    if (manual) {
+      setLocalTitle(manual.title);
+      setLocalDescription(manual.description || '');
+    }
+  }, [manual]);
 
   const createSectionMutation = useMutation({
     mutationFn: async (data) => {
@@ -259,15 +286,15 @@ export default function ManualEditor() {
               <div className="flex-1">
                 <input
                   type="text"
-                  value={manual.title}
-                  onChange={(e) => updateManualMutation.mutate({ id: manualId, data: { title: e.target.value } })}
+                  value={localTitle}
+                  onChange={(e) => handleTitleChange(e.target.value)}
                   className="text-3xl font-bold text-slate-900 bg-transparent border-none outline-none focus:ring-2 focus:ring-blue-200 rounded px-2 py-1 -ml-2 w-full"
                   placeholder="Procedure Title"
                 />
                 <input
                   type="text"
-                  value={manual.description || ''}
-                  onChange={(e) => updateManualMutation.mutate({ id: manualId, data: { description: e.target.value } })}
+                  value={localDescription}
+                  onChange={(e) => handleDescriptionChange(e.target.value)}
                   className="text-slate-600 mt-1 bg-transparent border-none outline-none focus:ring-2 focus:ring-blue-200 rounded px-2 py-1 -ml-2 w-full"
                   placeholder="Add description..."
                 />
