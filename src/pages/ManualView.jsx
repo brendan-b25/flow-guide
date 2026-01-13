@@ -2,7 +2,7 @@ import React from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit, Download, Share2, Sparkles } from 'lucide-react';
+import { ArrowLeft, Edit, Download, Sparkles, FileDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import ReactMarkdown from 'react-markdown';
@@ -24,6 +24,15 @@ export default function ManualView() {
   const { data: sections = [] } = useQuery({
     queryKey: ['sections', manualId],
     queryFn: () => base44.entities.ManualSection.filter({ manual_id: manualId }, 'order'),
+    enabled: !!manualId
+  });
+
+  const { data: branding } = useQuery({
+    queryKey: ['branding', manualId],
+    queryFn: async () => {
+      const results = await base44.entities.ManualBranding.filter({ manual_id: manualId });
+      return results[0] || null;
+    },
     enabled: !!manualId
   });
 
@@ -67,6 +76,19 @@ export default function ManualView() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleDownloadPDF = async () => {
+    // Trigger browser print which can save as PDF
+    window.print();
+  };
+
+  const fontFamilyMap = {
+    inter: 'Inter, system-ui, sans-serif',
+    roboto: 'Roboto, sans-serif',
+    playfair: '"Playfair Display", serif',
+    lato: 'Lato, sans-serif',
+    merriweather: 'Merriweather, serif'
   };
 
   const handleGenerateSummaries = async () => {
@@ -128,7 +150,7 @@ Return a summary for each section that is clear, actionable, and under 20 words.
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50" style={{ fontFamily: branding ? fontFamilyMap[branding.font_family] : 'inherit' }}>
       {/* Header - Hidden in print */}
       <div className="bg-white border-b border-slate-200 print:hidden sticky top-0 z-10 shadow-sm">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -165,6 +187,10 @@ Return a summary for each section that is clear, actionable, and under 20 words.
                   {showSummaries ? 'Hide' : 'Show'} Summaries
                 </Button>
               )}
+              <Button variant="outline" onClick={handleDownloadPDF}>
+                <FileDown className="w-4 h-4 mr-2" />
+                Download PDF
+              </Button>
               <Button variant="outline" onClick={handlePrint}>
                 <Download className="w-4 h-4 mr-2" />
                 Print
@@ -180,13 +206,27 @@ Return a summary for each section that is clear, actionable, and under 20 words.
         </div>
       </div>
 
+      {/* Custom Header - Print Only */}
+      {branding?.header_text && (
+        <div className="hidden print:block text-center py-4 border-b border-slate-300 text-sm text-slate-600" style={{ color: branding.secondary_color }}>
+          {branding.header_text}
+        </div>
+      )}
+
       {/* Manual Content */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 print:py-0">
         {/* Cover Page */}
         <div
           className="rounded-2xl p-16 mb-12 text-center shadow-2xl print:shadow-none print:rounded-none relative overflow-hidden"
-          style={{ backgroundColor: manual.cover_color }}
+          style={{ backgroundColor: branding?.primary_color || manual.cover_color }}
         >
+          {/* Logo */}
+          {branding?.logo_url && (
+            <div className="mb-6">
+              <img src={branding.logo_url} alt="Logo" className="h-20 w-auto mx-auto" />
+            </div>
+          )}
+
           {/* Decorative elements */}
           <div className="absolute top-4 left-4 text-white/20 text-4xl">◈</div>
           <div className="absolute top-4 right-4 text-white/20 text-4xl">◈</div>
@@ -207,13 +247,15 @@ Return a summary for each section that is clear, actionable, and under 20 words.
             <div className="flex justify-center gap-2 text-white/40 text-xl pt-4">
               <span>◇</span><span>◇</span><span>◇</span>
             </div>
-            <div className="pt-4 text-white/80 text-sm">
-              Created on {new Date(manual.created_date).toLocaleDateString('en-AU', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              })}
-            </div>
+            {(branding?.show_date ?? true) && (
+              <div className="pt-4 text-white/80 text-sm">
+                Created on {new Date(manual.created_date).toLocaleDateString('en-AU', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })}
+              </div>
+            )}
           </div>
         </div>
 
@@ -287,6 +329,21 @@ Return a summary for each section that is clear, actionable, and under 20 words.
                   >
                     {section.content}
                   </ReactMarkdown>
+                  
+                  {/* Section Images */}
+                  {section.images && section.images.length > 0 && (
+                    <div className="mt-6 space-y-4">
+                      {section.images.map((imageUrl, idx) => (
+                        <div key={idx} className="border border-slate-200 rounded-lg overflow-hidden">
+                          <img 
+                            src={imageUrl} 
+                            alt={`Section ${index + 1} - Image ${idx + 1}`}
+                            className="w-full h-auto"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -313,17 +370,35 @@ Return a summary for each section that is clear, actionable, and under 20 words.
         {sections.length > 0 && (
           <div className="mt-16 pt-8 border-t border-slate-200 text-center text-sm text-slate-500 print:break-before-page">
             <p>End of {manual.title}</p>
-            <p className="mt-2">Generated by Onboarding Manual Creator</p>
+            {branding?.footer_text ? (
+              <p className="mt-2 whitespace-pre-line">{branding.footer_text}</p>
+            ) : (
+              <p className="mt-2">Generated by Procedure Manual Creator</p>
+            )}
           </div>
         )}
       </div>
+
+      {/* Custom Footer - Print Only */}
+      {branding?.footer_text && (
+        <div className="hidden print:block text-center py-4 border-t border-slate-300 text-xs text-slate-500 mt-8">
+          {branding.footer_text}
+        </div>
+      )}
 
       {/* Print Styles */}
       <style>{`
         @media print {
           @page {
             size: A4;
-            margin: 20mm 15mm;
+            margin: ${branding?.show_page_numbers ? '25mm 15mm' : '20mm 15mm'};
+            ${branding?.show_page_numbers ? `
+              @bottom-right {
+                content: counter(page);
+                font-size: 10pt;
+                color: #64748b;
+              }
+            ` : ''}
           }
 
           body {
@@ -339,6 +414,9 @@ Return a summary for each section that is clear, actionable, and under 20 words.
 
           .print\\:hidden {
             display: none !important;
+          }
+          .print\\:block {
+            display: block !important;
           }
           .print\\:shadow-none {
             box-shadow: none !important;
@@ -376,6 +454,8 @@ Return a summary for each section that is clear, actionable, and under 20 words.
           /* Ensure images fit on A4 */
           img {
             max-width: 100%;
+            max-height: 250mm;
+            object-fit: contain;
             page-break-inside: avoid;
           }
         }
