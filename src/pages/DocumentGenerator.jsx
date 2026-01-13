@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { FileText, Download, Loader2, Sparkles, File, Table } from 'lucide-react';
+import { FileText, Download, Loader2, Sparkles, File, Table, Save } from 'lucide-react';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table as DocxTable, TableRow, TableCell, WidthType } from 'docx';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -14,6 +14,7 @@ export default function DocumentGenerator() {
   const [generatedContent, setGeneratedContent] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportFormat, setExportFormat] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleGenerate = async () => {
     if (!description.trim()) return;
@@ -273,6 +274,28 @@ Make it professional, complete, and ready to use. Use Australian English. Includ
     }
   };
 
+  const saveAsTemplate = async () => {
+    if (!generatedContent) return;
+    setIsSaving(true);
+
+    try {
+      await base44.entities.DocumentTemplate.create({
+        title: generatedContent.title,
+        description: generatedContent.description || '',
+        category: 'other',
+        content: generatedContent,
+        tags: []
+      });
+
+      alert('✅ Template saved successfully!');
+    } catch (error) {
+      console.error('Save error:', error);
+      alert('Failed to save template.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const exportOptions = [
     { format: 'docx', label: 'Word', icon: File, color: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100', action: exportToWord },
     { format: 'xlsx', label: 'Excel', icon: Table, color: 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100', action: exportToExcel },
@@ -383,7 +406,24 @@ Make it professional, complete, and ready to use. Use Australian English. Includ
                   Download Template
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
+                <Button
+                  onClick={saveAsTemplate}
+                  disabled={isSaving}
+                  className="w-full h-12 bg-slate-700 hover:bg-slate-800"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-5 h-5 mr-2" />
+                      Save as Template
+                    </>
+                  )}
+                </Button>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {exportOptions.map((option) => {
                     const Icon = option.icon;

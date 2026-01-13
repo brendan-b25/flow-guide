@@ -4,6 +4,7 @@ import ManualView from './pages/ManualView';
 import Manuals from './pages/Manuals';
 import Templates from './pages/Templates';
 import DocumentGenerator from './pages/DocumentGenerator';
+import DocumentTemplates from './pages/DocumentTemplates';
 import __Layout from './Layout.jsx';
 
 
@@ -14,6 +15,7 @@ export const PAGES = {
     "Manuals": Manuals,
     "Templates": Templates,
     "DocumentGenerator": DocumentGenerator,
+    "DocumentTemplates": DocumentTemplates,
 }
 
 export const pagesConfig = {
