@@ -9,22 +9,28 @@ import { Upload, Loader2, FileText, CheckCircle2, Clock } from 'lucide-react';
 export default function UploadManualDialog({ manualId, onSectionsCreated }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
   const [status, setStatus] = useState('');
   const [progress, setProgress] = useState(0);
   const [estimatedTime, setEstimatedTime] = useState(0);
   const [countdown, setCountdown] = useState(0);
+  const [currentFileIndex, setCurrentFileIndex] = useState(0);
   const progressIntervalRef = useRef(null);
   const countdownIntervalRef = useRef(null);
 
   const handleFileChange = (e) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
+    const selectedFiles = Array.from(e.target.files || []);
+    if (selectedFiles.length > 0) {
+      setFiles(selectedFiles);
       setStatus('');
       setProgress(0);
       setCountdown(0);
+      setCurrentFileIndex(0);
     }
+  };
+
+  const removeFile = (indexToRemove) => {
+    setFiles(files.filter((_, idx) => idx !== indexToRemove));
   };
 
   useEffect(() => {
@@ -39,7 +45,7 @@ export default function UploadManualDialog({ manualId, onSectionsCreated }) {
   }, []);
 
   const handleUpload = async () => {
-    if (!file) return;
+    if (files.length === 0) return;
 
     // Clear any existing intervals
     if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
@@ -47,28 +53,35 @@ export default function UploadManualDialog({ manualId, onSectionsCreated }) {
 
     setIsProcessing(true);
     setProgress(0);
-    setStatus('Uploading file...');
-
-    // Detect file type and estimate processing time
-    const isVideo = file.type.startsWith('video/');
-    const isAudio = file.type.startsWith('audio/');
-    const isLargeFile = file.size > 10 * 1024 * 1024; // 10MB
+    setCurrentFileIndex(0);
     
-    // Estimate time based on file type (in seconds)
-    let estimatedSeconds = 30; // Base time for documents
-    if (isVideo) estimatedSeconds = 90;
-    else if (isAudio) estimatedSeconds = 60;
-    else if (isLargeFile) estimatedSeconds = 45;
+    const allSections = [];
 
-    // Timeout: 3x the estimated time
-    const timeoutMs = estimatedSeconds * 3 * 1000;
-    let timeoutId = null;
-    let timedOut = false;
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      setCurrentFileIndex(i);
+      setStatus(`Processing file ${i + 1} of ${files.length}: ${file.name}...`);
+      setProgress((i / files.length) * 100);
 
-    setEstimatedTime(estimatedSeconds);
-    setCountdown(estimatedSeconds);
+      // Detect file type and estimate processing time
+      const isVideo = file.type.startsWith('video/');
+      const isAudio = file.type.startsWith('audio/');
+      const isLargeFile = file.size > 10 * 1024 * 1024; // 10MB
+    
+      // Estimate time based on file type (in seconds)
+      let estimatedSeconds = 30;
+      if (isVideo) estimatedSeconds = 90;
+      else if (isAudio) estimatedSeconds = 60;
+      else if (isLargeFile) estimatedSeconds = 45;
 
-    try {
+      const timeoutMs = estimatedSeconds * 3 * 1000;
+      let timeoutId = null;
+      let timedOut = false;
+
+      setEstimatedTime(estimatedSeconds);
+      setCountdown(estimatedSeconds);
+
+      try {
       // Set up timeout
       timeoutId = setTimeout(() => {
         timedOut = true;
@@ -157,20 +170,41 @@ Use metric units, Australian English. Focus on key steps and preserve all visual
         }
       });
 
-      if (timedOut) return;
+        if (timedOut) continue;
 
-      // Clear timeout and intervals
-      if (timeoutId) clearTimeout(timeoutId);
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+        // Clear timeout and intervals
+        if (timeoutId) clearTimeout(timeoutId);
+        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+        if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
 
-      setProgress(90);
-      setCountdown(0);
+        setCountdown(0);
+
+        // Store sections with images
+        if (result.sections && result.sections.length > 0) {
+          allSections.push(...result.sections.map((section) => ({
+            title: section.title,
+            content: section.content,
+            section_type: section.section_type,
+            images: section.images || []
+          })));
+        }
+      } catch (error) {
+        if (timeoutId) clearTimeout(timeoutId);
+        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+        if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+        
+        console.error(`Error processing file ${file.name}:`, error);
+        alert(`Failed to process ${file.name}. Continuing with remaining files...`);
+      }
+    }
+
+    // Create all sections
+    try {
       setStatus('Creating manual sections...');
+      setProgress(95);
 
-      // Create sections with images
-      if (result.sections && result.sections.length > 0) {
-        const sectionsToCreate = result.sections.map((section, index) => ({
+      if (allSections.length > 0) {
+        const sectionsToCreate = allSections.map((section, index) => ({
           manual_id: manualId,
           title: section.title,
           content: section.content,
@@ -185,7 +219,7 @@ Use metric units, Australian English. Focus on key steps and preserve all visual
           manual_id: manualId,
           version_type: 'manual_snapshot',
           snapshot_data: { sections: sectionsToCreate },
-          change_description: `Sections created from uploaded ${isVideo ? 'video' : isAudio ? 'audio' : 'file'}: ${file.name}`
+          change_description: `Sections created from ${files.length} uploaded file(s)`
         });
 
         setProgress(100);
@@ -194,7 +228,7 @@ Use metric units, Australian English. Focus on key steps and preserve all visual
         setTimeout(() => {
           onSectionsCreated();
           setIsOpen(false);
-          setFile(null);
+          setFiles([]);
           setStatus('');
           setProgress(0);
           setCountdown(0);
@@ -203,34 +237,17 @@ Use metric units, Australian English. Focus on key steps and preserve all visual
         throw new Error('NO_SECTIONS');
       }
     } catch (error) {
-      // Clean up
-      if (timeoutId) clearTimeout(timeoutId);
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+      console.error('Error creating sections:', error);
+      let errorMessage = 'Failed to create sections. Please try again.';
       
-      console.error('Error processing file:', error);
-      
-      let errorMessage = 'An unexpected error occurred. Please try again.';
-      
-      if (error.message === 'TIMEOUT') {
-        errorMessage = `Processing timeout - ${isVideo ? 'video' : isAudio ? 'audio' : 'file'} took too long. Try a shorter file or check your connection.`;
-      } else if (error.message === 'NO_SECTIONS') {
-        errorMessage = 'AI could not extract content from the file. Please ensure the file contains clear spoken content or text.';
-      } else if (error.message?.includes('upload')) {
-        errorMessage = 'File upload failed. Check your internet connection and try again.';
-      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
-        errorMessage = 'Network error - please check your internet connection and try again.';
+      if (error.message === 'NO_SECTIONS') {
+        errorMessage = 'No content could be extracted from the files.';
       }
       
       setStatus('error');
       setProgress(0);
-      setCountdown(0);
       alert(`❌ ${errorMessage}`);
-    } finally {
       setIsProcessing(false);
-      if (timeoutId) clearTimeout(timeoutId);
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
     }
   };
 
@@ -254,33 +271,62 @@ Use metric units, Australian English. Focus on key steps and preserve all visual
             <Label htmlFor="file" className="text-sm font-medium">
               Select Document
             </Label>
-            <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors">
+            <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
               <Input
                 id="file"
                 type="file"
                 onChange={handleFileChange}
                 accept=".pdf,.doc,.docx,.txt,video/*,audio/*"
                 className="hidden"
+                multiple
               />
               <label htmlFor="file" className="cursor-pointer">
                 <FileText className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-                {file ? (
+                {files.length > 0 ? (
                   <div>
-                    <p className="font-medium text-slate-900">{file.name}</p>
+                    <p className="font-medium text-slate-900">{files.length} file(s) selected</p>
                     <p className="text-sm text-slate-500 mt-1">
-                      {(file.size / 1024 / 1024).toFixed(2)} MB
+                      {(files.reduce((acc, f) => acc + f.size, 0) / 1024 / 1024).toFixed(2)} MB total
                     </p>
                   </div>
                 ) : (
                   <div>
                     <p className="font-medium text-slate-900">Click to upload</p>
                     <p className="text-sm text-slate-500 mt-1">
-                      Documents, Videos, or Audio
+                      Multiple files supported
                     </p>
                   </div>
                 )}
               </label>
             </div>
+          </div>
+
+          {files.length > 0 && (
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {files.map((f, idx) => (
+                <div key={idx} className="flex items-center justify-between bg-slate-50 rounded-lg p-2">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <FileText className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                    <span className="text-sm text-slate-700 truncate">{f.name}</span>
+                  </div>
+                  <button
+                    onClick={() => removeFile(idx)}
+                    className="text-slate-400 hover:text-red-600 p-1"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {status && status !== 'success' && status !== 'error' && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <Loader2 className="w-5 h-5 text-blue-600 animate-spin flex-shrink-0" />
+                  <p className="text-sm text-blue-900 font-medium truncate">{status}</p>
+                </div>
           </div>
 
           {status && status !== 'success' && status !== 'error' && (
@@ -337,18 +383,18 @@ Use metric units, Australian English. Focus on key steps and preserve all visual
 
           <Button
             onClick={handleUpload}
-            disabled={!file || isProcessing}
+            disabled={files.length === 0 || isProcessing}
             className="w-full h-12 bg-blue-600 hover:bg-blue-700"
           >
             {isProcessing ? (
               <>
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                Processing...
+                Processing {files.length} file(s)...
               </>
             ) : (
               <>
                 <Upload className="w-5 h-5 mr-2" />
-                Upload & Process
+                Upload & Process {files.length > 0 && `(${files.length})`}
               </>
             )}
           </Button>
