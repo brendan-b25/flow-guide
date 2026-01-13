@@ -18,61 +18,100 @@ export default function ExportDialog({ manual, sections, branding }) {
     setExportFormat('pdf');
     
     try {
-      // Create a temporary container with the manual content
-      const printContent = document.getElementById('manual-content');
-      if (!printContent) {
-        throw new Error('Content not found');
-      }
-
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 20;
+      const maxWidth = pageWidth - (margin * 2);
+      
+      // Helper to convert hex color to RGB
+      const hexToRgb = (hex) => {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16)
+        } : { r: 30, g: 64, b: 175 };
+      };
       
       // Add cover page
-      pdf.setFillColor(manual.cover_color || '#1e40af');
+      const coverColor = hexToRgb(manual.cover_color || '#1e40af');
+      pdf.setFillColor(coverColor.r, coverColor.g, coverColor.b);
       pdf.rect(0, 0, pageWidth, pageHeight, 'F');
       
       pdf.setTextColor(255, 255, 255);
       pdf.setFontSize(32);
-      pdf.text(manual.title, pageWidth / 2, pageHeight / 2, { align: 'center' });
+      pdf.setFont('helvetica', 'bold');
+      const titleLines = pdf.splitTextToSize(manual.title, maxWidth);
+      pdf.text(titleLines, pageWidth / 2, pageHeight / 2 - 10, { align: 'center' });
       
       if (manual.description) {
         pdf.setFontSize(14);
-        pdf.text(manual.description, pageWidth / 2, pageHeight / 2 + 20, { align: 'center', maxWidth: pageWidth - 40 });
+        pdf.setFont('helvetica', 'normal');
+        const descLines = pdf.splitTextToSize(manual.description, maxWidth);
+        pdf.text(descLines, pageWidth / 2, pageHeight / 2 + 15, { align: 'center' });
       }
 
-      // Add content pages
-      let yPosition = 20;
+      // Add new page for content
+      pdf.addPage();
+      let yPosition = margin;
       
       sections.forEach((section, index) => {
-        if (yPosition > pageHeight - 40) {
+        // Check if we need a new page
+        if (yPosition > pageHeight - 60) {
           pdf.addPage();
-          yPosition = 20;
+          yPosition = margin;
         }
 
+        // Section title
         pdf.setTextColor(0, 0, 0);
-        pdf.setFontSize(18);
-        pdf.text(`${index + 1}. ${section.title}`, 20, yPosition);
-        yPosition += 10;
+        pdf.setFontSize(16);
+        pdf.setFont('helvetica', 'bold');
+        const titleText = `${index + 1}. ${section.title}`;
+        const titleLines = pdf.splitTextToSize(titleText, maxWidth);
+        
+        titleLines.forEach(line => {
+          if (yPosition > pageHeight - 20) {
+            pdf.addPage();
+            yPosition = margin;
+          }
+          pdf.text(line, margin, yPosition);
+          yPosition += 8;
+        });
+        
+        yPosition += 3;
 
-        pdf.setFontSize(11);
-        const contentLines = pdf.splitTextToSize(section.content, pageWidth - 40);
+        // Section content
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'normal');
+        
+        // Clean markdown and format content
+        const cleanContent = section.content
+          .replace(/[*_~`]/g, '')
+          .replace(/#{1,6}\s/g, '')
+          .replace(/\n{3,}/g, '\n\n');
+        
+        const contentLines = pdf.splitTextToSize(cleanContent, maxWidth);
+        
         contentLines.forEach(line => {
           if (yPosition > pageHeight - 20) {
             pdf.addPage();
-            yPosition = 20;
+            yPosition = margin;
           }
-          pdf.text(line, 20, yPosition);
-          yPosition += 7;
+          pdf.text(line, margin, yPosition);
+          yPosition += 5;
         });
         
-        yPosition += 10;
+        yPosition += 8;
       });
 
-      pdf.save(`${manual.title}.pdf`);
+      // Save PDF
+      const filename = `${manual.title.replace(/[^a-z0-9]/gi, '_')}.pdf`;
+      pdf.save(filename);
+      
     } catch (error) {
       console.error('PDF export error:', error);
-      alert('Failed to export PDF. Please try again.');
+      alert(`Failed to export PDF: ${error.message}`);
     } finally {
       setIsExporting(false);
       setExportFormat(null);
