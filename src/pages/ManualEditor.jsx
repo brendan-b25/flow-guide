@@ -15,6 +15,7 @@ import StyleDialog from '../components/manuals/StyleDialog';
 import ManualAIChatDialog from '../components/manuals/ManualAIChatDialog';
 import AIStepBuilder from '../components/manuals/AIStepBuilder';
 import BrandingDialog from '../components/manuals/BrandingDialog';
+import StyleToneDialog from '../components/manuals/StyleToneDialog';
 
 export default function ManualEditor() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -36,6 +37,20 @@ export default function ManualEditor() {
     queryFn: () => base44.entities.ManualSection.filter({ manual_id: manualId }, 'order'),
     enabled: !!manualId
   });
+
+  const updateManualMutation = useMutation({
+    mutationFn: ({ id, data }) => base44.entities.Manual.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['manual', manualId]);
+    }
+  });
+
+  const handleStyleToneChange = ({ tone, style }) => {
+    updateManualMutation.mutate({
+      id: manualId,
+      data: { tone, style }
+    });
+  };
 
   useEffect(() => {
     setSections(sectionsData);
@@ -247,6 +262,11 @@ export default function ManualEditor() {
               </div>
             </div>
             <div className="flex gap-2 flex-wrap">
+              <StyleToneDialog 
+                currentTone={manual?.tone}
+                currentStyle={manual?.style}
+                onApply={handleStyleToneChange}
+              />
               <BrandingDialog manualId={manualId} />
               <ManualAIChatDialog
                 manualId={manualId}
