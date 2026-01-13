@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
+import { base44 } from '@/api/base44Client';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { GripVertical } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { GripVertical, Upload, X, Loader2 } from 'lucide-react';
 import SectionToolbar from './SectionToolbar';
 import AIImproveButton from './AIImproveButton';
 import AIChatButton from './AIChatButton';
@@ -31,6 +33,8 @@ const SectionEditor = memo(function SectionEditor({
   const [showChat, setShowChat] = useState(false);
   const [showIllustration, setShowIllustration] = useState(false);
   const [showSymbols, setShowSymbols] = useState(false);
+  const [localImages, setLocalImages] = useState(section.images || []);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   
   const debounceRef = useRef(null);
   const textareaRef = useRef(null);
@@ -43,6 +47,7 @@ const SectionEditor = memo(function SectionEditor({
     if (!isEditingRef.current) {
       setLocalTitle(section.title);
       setLocalContent(section.content);
+      setLocalImages(section.images || []);
     }
   }, [section.id]);
   
@@ -100,6 +105,29 @@ const SectionEditor = memo(function SectionEditor({
       onDelete(section.id);
     }
   }, [section.id, onDelete]);
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingImage(true);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const newImages = [...localImages, file_url];
+      setLocalImages(newImages);
+      onUpdate(section.id, { images: newImages });
+    } catch (error) {
+      alert('Failed to upload image. Please try again.');
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const handleRemoveImage = (indexToRemove) => {
+    const newImages = localImages.filter((_, idx) => idx !== indexToRemove);
+    setLocalImages(newImages);
+    onUpdate(section.id, { images: newImages });
+  };
 
   const config = sectionTypeConfig[section.section_type] || sectionTypeConfig.step;
 
@@ -166,6 +194,64 @@ const SectionEditor = memo(function SectionEditor({
               onChange={handleContentChange}
               className="min-h-28 sm:min-h-32 bg-white/90 border-transparent focus:border-slate-300 resize-y transition-colors text-sm sm:text-base"
             />
+
+            {/* Section Images */}
+            {localImages.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-xs font-medium text-slate-600 uppercase tracking-wider">Section Images</div>
+                <div className="grid grid-cols-2 gap-2">
+                  {localImages.map((imageUrl, idx) => (
+                    <div key={idx} className="relative group">
+                      <img 
+                        src={imageUrl} 
+                        alt={`Image ${idx + 1}`}
+                        className="w-full h-24 object-cover rounded border border-slate-200"
+                      />
+                      <button
+                        onClick={() => handleRemoveImage(idx)}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Image Upload Button */}
+            <div>
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+                id={`image-upload-${section.id}`}
+              />
+              <label htmlFor={`image-upload-${section.id}`}>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  asChild 
+                  disabled={isUploadingImage}
+                  className="cursor-pointer"
+                >
+                  <span>
+                    {isUploadingImage ? (
+                      <>
+                        <Loader2 className="w-3 h-3 mr-2 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-3 h-3 mr-2" />
+                        Add Image
+                      </>
+                    )}
+                  </span>
+                </Button>
+              </label>
+            </div>
           </div>
         </div>
       </CardHeader>
