@@ -83,8 +83,8 @@ export default function Manuals() {
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-2">Procedures & Documentation</h1>
-              <p className="text-base sm:text-lg text-slate-600">Create step-by-step guides and how-to manuals</p>
+              <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-700 to-blue-900 bg-clip-text text-transparent mb-2">Your Procedures</h1>
+              <p className="text-base sm:text-lg text-slate-600">Create professional step-by-step documentation</p>
             </div>
             <div className="flex gap-2 flex-wrap">
               <QuickVideoUpload 
@@ -207,9 +207,9 @@ export default function Manuals() {
               <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mb-6">
                 <Sparkles className="w-10 h-10 text-blue-600" />
               </div>
-              <h3 className="text-2xl font-semibold text-slate-900 mb-3">Create Your First Procedure</h3>
+              <h3 className="text-2xl font-semibold text-slate-900 mb-3">Welcome to FlowGuide</h3>
               <p className="text-slate-600 mb-8 text-center max-w-md">
-                Build step-by-step guides, how-to manuals, and standard operating procedures with AI assistance.
+                Create professional procedures and documentation with AI-powered tools and intuitive editing.
               </p>
               <Button 
                 onClick={() => setIsCreateOpen(true)}

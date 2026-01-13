@@ -230,7 +230,7 @@ export default function ManualEditor() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -293,8 +293,8 @@ export default function ManualEditor() {
                     <h3 className="font-semibold text-slate-900">Start with AI</h3>
                   </div>
                   <p className="text-sm text-slate-700 mb-4">
-                    Let AI generate comprehensive manual sections based on your topic, 
-                    upload an existing document, or create sections manually from scratch.
+                    Use AI-powered tools to generate comprehensive sections, upload existing documents, 
+                    or build your procedure manually from scratch.
                   </p>
                   <div className="flex gap-3 flex-wrap">
                     <AIStepBuilder 
