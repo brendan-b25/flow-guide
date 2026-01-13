@@ -14,6 +14,7 @@ export default function Layout({ children, currentPageName }) {
   const navItems = [
     { name: 'Procedures', icon: BookOpen, page: 'Manuals' },
     { name: 'Templates', icon: FileText, page: 'Templates' },
+    { name: 'Documents', icon: FileText, page: 'DocumentGenerator' },
   ];
 
   return (
