@@ -2,10 +2,11 @@ import React from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit, Download, Sparkles, FileDown } from 'lucide-react';
+import { ArrowLeft, Edit, Download, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import ReactMarkdown from 'react-markdown';
+import ExportDialog from '../components/manuals/ExportDialog';
 
 export default function ManualView() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -75,11 +76,6 @@ export default function ManualView() {
   };
 
   const handlePrint = () => {
-    window.print();
-  };
-
-  const handleDownloadPDF = async () => {
-    // Trigger browser print which can save as PDF
     window.print();
   };
 
@@ -187,14 +183,7 @@ Return a summary for each section that is clear, actionable, and under 20 words.
                   {showSummaries ? 'Hide' : 'Show'} Summaries
                 </Button>
               )}
-              <Button variant="outline" onClick={handleDownloadPDF}>
-                <FileDown className="w-4 h-4 mr-2" />
-                Download PDF
-              </Button>
-              <Button variant="outline" onClick={handlePrint}>
-                <Download className="w-4 h-4 mr-2" />
-                Print
-              </Button>
+              <ExportDialog manual={manual} sections={sections} branding={branding} />
               <Link to={createPageUrl('ManualEditor') + `?id=${manualId}`}>
                 <Button className="bg-blue-600 hover:bg-blue-700">
                   <Edit className="w-4 h-4 mr-2" />
