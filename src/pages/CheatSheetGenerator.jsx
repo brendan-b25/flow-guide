@@ -33,6 +33,10 @@ export default function CheatSheetGenerator() {
   const [editPrompt, setEditPrompt] = useState('');
   const [isEditingAI, setIsEditingAI] = useState(false);
   const [unitPreference, setUnitPreference] = useState('metric');
+  const [showConvertDialog, setShowConvertDialog] = useState(false);
+  const [convertToUnit, setConvertToUnit] = useState('metric');
+  const [isConverting, setIsConverting] = useState(false);
+  const [convertingSheet, setConvertingSheet] = useState(null);
   const queryClient = useQueryClient();
 
   const { data: savedSheets = [] } = useQuery({
@@ -472,6 +476,88 @@ Keep it scannable and practical. Use Australian English.`,
     a.remove();
   };
 
+  const handleConvertUnits = async (sheet = null) => {
+    const targetSheet = sheet || generatedSheet;
+    if (!targetSheet) return;
+
+    setIsConverting(true);
+    try {
+      const unitInstructions = {
+        metric: 'Convert all measurements to metric units (litres, millilitres, grams, kilograms, metres, centimetres). Round to convenient whole or half measurements.',
+        imperial: 'Convert all measurements to imperial units (gallons, fluid ounces, pounds, ounces, feet, inches). Round to convenient whole or half measurements.',
+        us: 'Convert all measurements to US customary units (gallons, fluid ounces, pounds, ounces, feet, inches). Round to convenient whole or half measurements.',
+        kitchen: 'Convert all measurements to kitchen measurements (cups, tablespoons, teaspoons, millilitres, litres). Round to convenient whole, half, or quarter measurements (e.g., 1 cup, ½ cup, 2 tbsp, 1 tsp).',
+        mixed: 'Convert all measurements to a practical mix of metric and kitchen measurements (litres, millilitres, cups, tablespoons, teaspoons, grams). Round to convenient whole or half measurements.'
+      };
+
+      const result = await base44.integrations.Core.InvokeLLM({
+        prompt: `Convert all measurements in this cheat sheet to the specified units:
+
+Current cheat sheet:
+${JSON.stringify(targetSheet, null, 2)}
+
+${unitInstructions[convertToUnit]}
+
+IMPORTANT: Only change the measurements - keep all other content, structure, headings, and information exactly the same. Just convert the numbers and units.
+
+Return the cheat sheet with the same structure:
+- title: Keep the same
+- summary: Keep the same (update only if it contains measurements)
+- sections: Same sections with converted measurements`,
+        response_json_schema: {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            summary: { type: "string" },
+            sections: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  heading: { type: "string" },
+                  items: {
+                    type: "array",
+                    items: { type: "string" }
+                  },
+                  type: { type: "string", enum: ["dosage", "steps", "tips", "safety", "troubleshooting", "general"] }
+                },
+                required: ["heading", "items", "type"]
+              }
+            }
+          },
+          required: ["title", "summary", "sections"]
+        }
+      });
+
+      if (sheet) {
+        // Converting a saved sheet
+        await base44.entities.CheatSheet.update(sheet.id, {
+          content: result
+        });
+        queryClient.invalidateQueries(['cheat-sheets']);
+        alert('✅ Measurements converted!');
+      } else {
+        // Converting the current generated sheet
+        setGeneratedSheet(result);
+        setSheetTitle(result.title);
+      }
+
+      setShowConvertDialog(false);
+      setConvertingSheet(null);
+    } catch (error) {
+      console.error('Conversion error:', error);
+      alert('Failed to convert measurements.');
+    } finally {
+      setIsConverting(false);
+    }
+  };
+
+  const openConvertDialog = (sheet = null) => {
+    setConvertingSheet(sheet);
+    setConvertToUnit('metric');
+    setShowConvertDialog(true);
+  };
+
   const handleAiEnhance = async () => {
     if (!aiEnhancePrompt.trim() || !generatedSheet) return;
 
@@ -777,14 +863,24 @@ Remove duplicates, organize logically, and make it scannable. Use Australian Eng
                   )}
 
                   <div className="flex flex-col gap-3 pt-4 border-t">
-                    <Button
-                      onClick={() => setShowEnhanceDialog(true)}
-                      variant="outline"
-                      className="w-full border-purple-200 text-purple-700 hover:bg-purple-50"
-                    >
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      AI Enhance
-                    </Button>
+                    <div className="flex gap-3">
+                      <Button
+                        onClick={() => setShowEnhanceDialog(true)}
+                        variant="outline"
+                        className="flex-1 border-purple-200 text-purple-700 hover:bg-purple-50"
+                      >
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        AI Enhance
+                      </Button>
+                      <Button
+                        onClick={() => openConvertDialog()}
+                        variant="outline"
+                        className="flex-1 border-blue-200 text-blue-700 hover:bg-blue-50"
+                      >
+                        <Ruler className="w-4 h-4 mr-2" />
+                        Convert Units
+                      </Button>
+                    </div>
                     <div className="flex gap-3">
                       <Button
                         onClick={saveCheatSheet}
@@ -902,6 +998,10 @@ Remove duplicates, organize logically, and make it scannable. Use Australian Eng
                                   <RefreshCw className="w-3 h-3 mr-2" />
                                   AI Edit
                                 </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => openConvertDialog(sheet)}>
+                                  <Ruler className="w-3 h-3 mr-2" />
+                                  Convert Units
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => exportSheetToPDF(sheet)}>
                                   <Download className="w-3 h-3 mr-2" />
                                   Download PDF
@@ -987,6 +1087,60 @@ Remove duplicates, organize logically, and make it scannable. Use Australian Eng
                   <>
                     <Sparkles className="w-4 h-4 mr-2" />
                     Apply Enhancement
+                  </>
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Convert Units Dialog */}
+        <Dialog open={showConvertDialog} onOpenChange={setShowConvertDialog}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Ruler className="w-5 h-5 text-blue-600" />
+                Convert Measurements
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              {convertingSheet && (
+                <div className="text-sm text-slate-600 bg-slate-50 rounded p-3">
+                  Converting: <span className="font-medium">{convertingSheet.title}</span>
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="convert-to">Convert to:</Label>
+                <Select value={convertToUnit} onValueChange={setConvertToUnit}>
+                  <SelectTrigger id="convert-to" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="metric">Metric (L, mL, g, kg, m, cm)</SelectItem>
+                    <SelectItem value="imperial">Imperial (gal, fl oz, lb, oz, ft, in)</SelectItem>
+                    <SelectItem value="us">US Customary (gal, fl oz, lb, oz, ft, in)</SelectItem>
+                    <SelectItem value="kitchen">Kitchen (cups, tbsp, tsp, mL, L)</SelectItem>
+                    <SelectItem value="mixed">Mixed (Metric + Kitchen)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-slate-500">
+                  AI will convert all measurements to convenient whole or half amounts
+                </p>
+              </div>
+              <Button
+                onClick={() => handleConvertUnits(convertingSheet)}
+                disabled={isConverting}
+                className="w-full bg-blue-600 hover:bg-blue-700"
+              >
+                {isConverting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Converting...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Convert Measurements
                   </>
                 )}
               </Button>
