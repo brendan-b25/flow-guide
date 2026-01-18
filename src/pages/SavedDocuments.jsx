@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, FileText, Copy, Edit2, Trash2, Download, RefreshCw, Sparkles, Loader2, ArrowLeft, X, FileDown } from 'lucide-react';
+import { Search, FileText, Copy, Edit2, Trash2, Download, RefreshCw, Sparkles, Loader2, ArrowLeft, X, FileDown, Wand2, CheckCircle } from 'lucide-react';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -26,6 +26,9 @@ export default function SavedDocuments() {
   const [isCombining, setIsCombining] = useState(false);
   const [openedDocument, setOpenedDocument] = useState(null);
   const [documentType, setDocumentType] = useState(null);
+  const [showEnhancements, setShowEnhancements] = useState(false);
+  const [suggestedEnhancements, setSuggestedEnhancements] = useState([]);
+  const [isGeneratingEnhancements, setIsGeneratingEnhancements] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -179,16 +182,148 @@ Generate an improved version with the same structure. Keep it professional and p
   const openDocument = (doc, type) => {
     setOpenedDocument(doc);
     setDocumentType(type);
+    setSuggestedEnhancements([]);
+    setShowEnhancements(false);
   };
 
   const closeDocument = () => {
     setOpenedDocument(null);
     setDocumentType(null);
+    setSuggestedEnhancements([]);
+    setShowEnhancements(false);
   };
 
   const openEditForCurrentDoc = () => {
     if (openedDocument && documentType) {
-      openEditDialog(openedDocument, documentType);
+      setEditDialog({ open: true, item: openedDocument, type: documentType });
+      setEditPrompt('');
+    }
+  };
+
+  const generateEnhancements = async () => {
+    if (!openedDocument) return;
+
+    setIsGeneratingEnhancements(true);
+    try {
+      const isCheatSheet = documentType === 'cheatsheet';
+      const content = openedDocument.content;
+
+      const result = await base44.integrations.Core.InvokeLLM({
+        prompt: `Analyze this ${isCheatSheet ? 'cheat sheet' : 'document'} and suggest 3-5 specific improvements:
+
+${JSON.stringify(content, null, 2)}
+
+Generate practical, actionable enhancements. Each should be a clear, specific improvement. Use Australian English.`,
+        response_json_schema: {
+          type: "object",
+          properties: {
+            enhancements: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  description: { type: "string" }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      setSuggestedEnhancements(result.enhancements || []);
+      setShowEnhancements(true);
+    } catch (error) {
+      console.error('Enhancement generation error:', error);
+      alert('Failed to generate enhancements. Please try again.');
+    } finally {
+      setIsGeneratingEnhancements(false);
+    }
+  };
+
+  const applyEnhancement = async (enhancement) => {
+    if (!openedDocument) return;
+
+    setIsEditing(true);
+    try {
+      const isCheatSheet = documentType === 'cheatsheet';
+      const content = openedDocument.content;
+
+      const result = await base44.integrations.Core.InvokeLLM({
+        prompt: `Apply this enhancement to the ${isCheatSheet ? 'cheat sheet' : 'document'}:
+
+Enhancement: ${enhancement.title}
+Details: ${enhancement.description}
+
+Current content:
+${JSON.stringify(content, null, 2)}
+
+Generate an improved version with the same structure. Keep it professional and practical. Use Australian English.`,
+        response_json_schema: isCheatSheet ? {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            summary: { type: "string" },
+            sections: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  heading: { type: "string" },
+                  items: { type: "array", items: { type: "string" } },
+                  type: { type: "string" }
+                }
+              }
+            }
+          }
+        } : {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            description: { type: "string" },
+            sections: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  heading: { type: "string" },
+                  content: { type: "string" },
+                  type: { type: "string" }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      if (isCheatSheet) {
+        await base44.entities.CheatSheet.update(openedDocument.id, {
+          title: result.title,
+          content: result
+        });
+        queryClient.invalidateQueries(['cheat-sheets']);
+      } else {
+        await base44.entities.DocumentTemplate.update(openedDocument.id, {
+          title: result.title,
+          content: result
+        });
+        queryClient.invalidateQueries(['doc-templates']);
+      }
+
+      setOpenedDocument({
+        ...openedDocument,
+        title: result.title,
+        content: result
+      });
+
+      setSuggestedEnhancements([]);
+      setShowEnhancements(false);
+      alert('✅ Enhancement applied!');
+    } catch (error) {
+      console.error('Apply enhancement error:', error);
+      alert('Failed to apply enhancement. Please try again.');
+    } finally {
+      setIsEditing(false);
     }
   };
 
@@ -579,14 +714,77 @@ Remove duplicates, organize logically by topic/workflow, add cross-references wh
               </DropdownMenu>
               <Button
                 variant="outline"
+                onClick={generateEnhancements}
+                disabled={isGeneratingEnhancements}
+                className="gap-2 border-blue-200 text-blue-700 hover:bg-blue-50"
+              >
+                {isGeneratingEnhancements ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="w-4 h-4" />
+                    AI Enhance
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="outline"
                 onClick={openEditForCurrentDoc}
                 className="gap-2 border-blue-200 text-blue-700 hover:bg-blue-50"
               >
-                <RefreshCw className="w-4 h-4" />
+                <Edit2 className="w-4 h-4" />
                 AI Edit
               </Button>
             </div>
           </div>
+
+          {showEnhancements && suggestedEnhancements.length > 0 && (
+            <Card className="mb-6 border-2 border-blue-200 bg-blue-50">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-blue-600" />
+                    <CardTitle className="text-lg text-blue-900">AI Suggested Enhancements</CardTitle>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowEnhancements(false)}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {suggestedEnhancements.map((enhancement, idx) => (
+                  <div key={idx} className="bg-white rounded-lg p-4 flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-slate-900 mb-1">{enhancement.title}</h4>
+                      <p className="text-sm text-slate-600">{enhancement.description}</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => applyEnhancement(enhancement)}
+                      disabled={isEditing}
+                      className="bg-blue-600 hover:bg-blue-700 shrink-0"
+                    >
+                      {isEditing ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <>
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Apply
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="shadow-lg border-0">
             <CardHeader>
