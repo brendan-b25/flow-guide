@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Loader2, Sparkles, Plus, X, Upload, Type, FileText, Save, Download, Edit2, Trash2, Search } from 'lucide-react';
+import { Loader2, Sparkles, Plus, X, Upload, Type, FileText, Save, Download, Edit2, Trash2, Search, RefreshCw, Combine } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import jsPDF from 'jspdf';
 
@@ -20,6 +20,11 @@ export default function CheatSheetGenerator() {
   const [sheetTitle, setSheetTitle] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [aiEnhancePrompt, setAiEnhancePrompt] = useState('');
+  const [isEnhancing, setIsEnhancing] = useState(false);
+  const [showEnhanceDialog, setShowEnhanceDialog] = useState(false);
+  const [selectedSheets, setSelectedSheets] = useState([]);
+  const [isCombining, setIsCombining] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: savedSheets = [] } = useQuery({
@@ -215,6 +220,127 @@ Use Australian English. Focus on quick reference - make it scannable.`,
     setSheetTitle(sheet.title);
     setProducts(sheet.products?.map(p => ({ ...p, file: null })) || [{ name: '', info: '', file: null }]);
     setEditMode(false);
+    setSelectedSheets([]);
+  };
+
+  const handleAiEnhance = async () => {
+    if (!aiEnhancePrompt.trim() || !generatedSheet) return;
+
+    setIsEnhancing(true);
+    try {
+      const result = await base44.integrations.Core.InvokeLLM({
+        prompt: `Enhance this cheat sheet based on the request: "${aiEnhancePrompt}"
+
+Current cheat sheet:
+${JSON.stringify(generatedSheet, null, 2)}
+
+Generate an improved version with the same structure:
+- title: Catchy title
+- summary: One-sentence overview
+- sections: Array with heading, items (array of strings), and type (dosage/steps/tips/safety/troubleshooting/general)
+
+Keep it scannable and practical. Use Australian English.`,
+        response_json_schema: {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            summary: { type: "string" },
+            sections: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  heading: { type: "string" },
+                  items: {
+                    type: "array",
+                    items: { type: "string" }
+                  },
+                  type: { type: "string", enum: ["dosage", "steps", "tips", "safety", "troubleshooting", "general"] }
+                },
+                required: ["heading", "items", "type"]
+              }
+            }
+          },
+          required: ["title", "summary", "sections"]
+        }
+      });
+
+      setGeneratedSheet(result);
+      setSheetTitle(result.title);
+      setShowEnhanceDialog(false);
+      setAiEnhancePrompt('');
+    } catch (error) {
+      console.error('Enhancement error:', error);
+      alert('Failed to enhance cheat sheet.');
+    } finally {
+      setIsEnhancing(false);
+    }
+  };
+
+  const toggleSheetSelection = (sheetId) => {
+    setSelectedSheets(prev =>
+      prev.includes(sheetId) ? prev.filter(id => id !== sheetId) : [...prev, sheetId]
+    );
+  };
+
+  const combineSelectedSheets = async () => {
+    if (selectedSheets.length < 2) {
+      alert('Select at least 2 sheets to combine');
+      return;
+    }
+
+    setIsCombining(true);
+    try {
+      const sheetsToMerge = savedSheets.filter(s => selectedSheets.includes(s.id));
+      const combinedContent = sheetsToMerge.map(s => JSON.stringify(s.content, null, 2)).join('\n\n---\n\n');
+
+      const result = await base44.integrations.Core.InvokeLLM({
+        prompt: `Combine these ${sheetsToMerge.length} cheat sheets into one unified, well-organized reference guide:
+
+${combinedContent}
+
+Create a single comprehensive cheat sheet with:
+- title: Descriptive title covering all products/topics
+- summary: Brief overview of what's included
+- sections: Organized sections that combine related information from all sheets
+
+Remove duplicates, organize logically, and make it scannable. Use Australian English.`,
+        response_json_schema: {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            summary: { type: "string" },
+            sections: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  heading: { type: "string" },
+                  items: {
+                    type: "array",
+                    items: { type: "string" }
+                  },
+                  type: { type: "string", enum: ["dosage", "steps", "tips", "safety", "troubleshooting", "general"] }
+                },
+                required: ["heading", "items", "type"]
+              }
+            }
+          },
+          required: ["title", "summary", "sections"]
+        }
+      });
+
+      setGeneratedSheet(result);
+      setSheetTitle(result.title);
+      setProducts([{ name: 'Combined', info: 'Merged from multiple sheets', file: null }]);
+      setSelectedSheets([]);
+      setEditMode(false);
+    } catch (error) {
+      console.error('Combine error:', error);
+      alert('Failed to combine sheets.');
+    } finally {
+      setIsCombining(false);
+    }
   };
 
   const sectionIcons = {
@@ -404,27 +530,37 @@ Use Australian English. Focus on quick reference - make it scannable.`,
                     ))
                   )}
 
-                  <div className="flex gap-3 pt-4 border-t">
+                  <div className="flex flex-col gap-3 pt-4 border-t">
                     <Button
-                      onClick={saveCheatSheet}
-                      disabled={isSaving}
-                      className="flex-1 bg-slate-700 hover:bg-slate-800"
-                    >
-                      {isSaving ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Save className="w-4 h-4 mr-2" />
-                      )}
-                      Save
-                    </Button>
-                    <Button
-                      onClick={exportToPDF}
+                      onClick={() => setShowEnhanceDialog(true)}
                       variant="outline"
-                      className="flex-1 border-blue-200 text-blue-700 hover:bg-blue-50"
+                      className="w-full border-purple-200 text-purple-700 hover:bg-purple-50"
                     >
-                      <Download className="w-4 h-4 mr-2" />
-                      Export PDF
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      AI Enhance
                     </Button>
+                    <div className="flex gap-3">
+                      <Button
+                        onClick={saveCheatSheet}
+                        disabled={isSaving}
+                        className="flex-1 bg-slate-700 hover:bg-slate-800"
+                      >
+                        {isSaving ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Save className="w-4 h-4 mr-2" />
+                        )}
+                        Save
+                      </Button>
+                      <Button
+                        onClick={exportToPDF}
+                        variant="outline"
+                        className="flex-1 border-blue-200 text-blue-700 hover:bg-blue-50"
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Export PDF
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -435,7 +571,26 @@ Use Australian English. Focus on quick reference - make it scannable.`,
           <div className="space-y-4">
             <Card className="border-0 shadow-lg">
               <CardHeader>
-                <CardTitle className="text-lg">Saved Sheets</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">Saved Sheets</CardTitle>
+                  {selectedSheets.length > 0 && (
+                    <Button
+                      size="sm"
+                      onClick={combineSelectedSheets}
+                      disabled={isCombining || selectedSheets.length < 2}
+                      className="bg-purple-600 hover:bg-purple-700 h-8"
+                    >
+                      {isCombining ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <>
+                          <Combine className="w-3 h-3 mr-1" />
+                          Combine ({selectedSheets.length})
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 {savedSheets.length > 0 && (
@@ -457,9 +612,22 @@ Use Australian English. Focus on quick reference - make it scannable.`,
                 ) : (
                   <div className="space-y-2 max-h-[600px] overflow-y-auto">
                     {filteredSheets.map(sheet => (
-                      <Card key={sheet.id} className="group hover:shadow-md transition-all bg-white">
+                      <Card 
+                        key={sheet.id} 
+                        className={`group hover:shadow-md transition-all ${
+                          selectedSheets.includes(sheet.id) 
+                            ? 'bg-blue-50 border-2 border-blue-400' 
+                            : 'bg-white'
+                        }`}
+                      >
                         <CardContent className="p-3 space-y-2">
-                          <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-start gap-2">
+                            <input
+                              type="checkbox"
+                              checked={selectedSheets.includes(sheet.id)}
+                              onChange={() => toggleSheetSelection(sheet.id)}
+                              className="mt-1 w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                            />
                             <button
                               onClick={() => loadSavedSheet(sheet)}
                               className="text-left flex-1 min-w-0"
@@ -506,6 +674,47 @@ Use Australian English. Focus on quick reference - make it scannable.`,
             </Card>
           </div>
         </div>
+
+        {/* AI Enhancement Dialog */}
+        <Dialog open={showEnhanceDialog} onOpenChange={setShowEnhanceDialog}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <RefreshCw className="w-5 h-5 text-purple-600" />
+                AI Enhancement
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label htmlFor="enhance-prompt">What improvements do you want?</Label>
+                <Textarea
+                  id="enhance-prompt"
+                  placeholder="e.g., Add more safety tips, simplify the language, add troubleshooting section, make dosage instructions clearer..."
+                  value={aiEnhancePrompt}
+                  onChange={(e) => setAiEnhancePrompt(e.target.value)}
+                  className="min-h-[120px]"
+                />
+              </div>
+              <Button
+                onClick={handleAiEnhance}
+                disabled={!aiEnhancePrompt.trim() || isEnhancing}
+                className="w-full bg-purple-600 hover:bg-purple-700"
+              >
+                {isEnhancing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Enhancing...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Apply Enhancement
+                  </>
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
