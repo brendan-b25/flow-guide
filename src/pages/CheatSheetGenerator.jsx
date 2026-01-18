@@ -144,7 +144,15 @@ When a section would benefit from a table (dosage charts, measurements, schedule
                     type: "array",
                     items: { type: "string" }
                   },
-                  type: { type: "string", enum: ["dosage", "steps", "tips", "safety", "troubleshooting", "general"] }
+                  type: { type: "string", enum: ["dosage", "steps", "tips", "safety", "troubleshooting", "general"] },
+                  image_url: { type: "string" },
+                  table: {
+                    type: "object",
+                    properties: {
+                      headers: { type: "array", items: { type: "string" } },
+                      rows: { type: "array", items: { type: "array", items: { type: "string" } } }
+                    }
+                  }
                 },
                 required: ["heading", "items", "type"]
               }
@@ -245,6 +253,16 @@ When a section would benefit from a table (dosage charts, measurements, schedule
 
       addText(section.heading, 12, true, sectionColors[section.type] || [0, 0, 0]);
       y += 2;
+
+      if (section.table && section.table.headers && section.table.rows) {
+        addText(section.table.headers.join(' | '), 9, true);
+        y += 1;
+        section.table.rows.forEach(row => {
+          addText(row.join(' | '), 8);
+          y += 1;
+        });
+        y += 2;
+      }
 
       section.items.forEach(item => {
         addText(`• ${item}`, 9);
@@ -703,7 +721,15 @@ Keep it scannable and practical. Use Australian English.`,
                     type: "array",
                     items: { type: "string" }
                   },
-                  type: { type: "string", enum: ["dosage", "steps", "tips", "safety", "troubleshooting", "general"] }
+                  type: { type: "string", enum: ["dosage", "steps", "tips", "safety", "troubleshooting", "general"] },
+                  image_url: { type: "string" },
+                  table: {
+                    type: "object",
+                    properties: {
+                      headers: { type: "array", items: { type: "string" } },
+                      rows: { type: "array", items: { type: "array", items: { type: "string" } } }
+                    }
+                  }
                 },
                 required: ["heading", "items", "type"]
               }
