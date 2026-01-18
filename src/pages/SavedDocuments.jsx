@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, FileText, Copy, Edit2, Trash2, Download, RefreshCw } from 'lucide-react';
+import { Search, FileText, Copy, Edit2, Trash2, Download, RefreshCw, Sparkles, Loader2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -19,6 +19,8 @@ export default function SavedDocuments() {
   const [editDialog, setEditDialog] = useState({ open: false, item: null, type: null });
   const [editPrompt, setEditPrompt] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [selectedForCombine, setSelectedForCombine] = useState([]);
+  const [isCombining, setIsCombining] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -154,6 +156,79 @@ Generate an improved version with the same structure. Keep it professional and p
     }
   };
 
+  const toggleSelection = (id) => {
+    setSelectedForCombine(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const combineIntoUltimateGuide = async () => {
+    if (selectedForCombine.length < 2) {
+      alert('Please select at least 2 cheat sheets to combine');
+      return;
+    }
+
+    setIsCombining(true);
+    try {
+      const selectedSheets = cheatSheets.filter(s => selectedForCombine.includes(s.id));
+      const combinedContent = selectedSheets.map(s => JSON.stringify(s.content, null, 2)).join('\n\n---\n\n');
+
+      const result = await base44.integrations.Core.InvokeLLM({
+        prompt: `Combine these ${selectedSheets.length} cheat sheets into one ultimate comprehensive reference guide.
+
+${combinedContent}
+
+Create a professional, well-organized ultimate guide with:
+- title: A comprehensive title that covers all topics (e.g., "Ultimate Pool Maintenance Guide")
+- summary: Brief overview of what's covered
+- sections: Organized sections that intelligently combine and enhance information from all sheets
+  - Each section should have: heading, items (array of detailed points), and type (dosage/steps/tips/safety/troubleshooting/general)
+  
+Remove duplicates, organize logically by topic/workflow, add cross-references where relevant, and enhance with additional expert tips. Make it the definitive guide. Use Australian English.`,
+        response_json_schema: {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            summary: { type: "string" },
+            sections: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  heading: { type: "string" },
+                  items: {
+                    type: "array",
+                    items: { type: "string" }
+                  },
+                  type: { type: "string", enum: ["dosage", "steps", "tips", "safety", "troubleshooting", "general"] }
+                },
+                required: ["heading", "items", "type"]
+              }
+            }
+          },
+          required: ["title", "summary", "sections"]
+        }
+      });
+
+      const allProducts = selectedSheets.flatMap(s => s.products || []);
+      await base44.entities.CheatSheet.create({
+        title: result.title,
+        category: 'general',
+        products: allProducts,
+        content: result
+      });
+
+      queryClient.invalidateQueries(['cheat-sheets']);
+      setSelectedForCombine([]);
+      alert('✅ Ultimate guide created successfully!');
+    } catch (error) {
+      console.error('Combine error:', error);
+      alert('Failed to create ultimate guide. Please try again.');
+    } finally {
+      setIsCombining(false);
+    }
+  };
+
   const filteredCheatSheets = cheatSheets.filter(s =>
     s.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -163,18 +238,26 @@ Generate an improved version with the same structure. Keep it professional and p
   );
 
   const renderCheatSheetCard = (sheet) => (
-    <Card key={sheet.id} className="group hover:shadow-lg transition-all">
+    <Card key={sheet.id} className={`group hover:shadow-lg transition-all ${selectedForCombine.includes(sheet.id) ? 'ring-2 ring-blue-500' : ''}`}>
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <CardTitle className="text-lg truncate">{sheet.title}</CardTitle>
-            <div className="flex items-center gap-2 mt-2">
-              <Badge variant="outline" className="text-xs">Cheat Sheet</Badge>
-              {sheet.products && sheet.products.length > 0 && (
-                <span className="text-xs text-slate-500 truncate">
-                  {sheet.products.length} product{sheet.products.length > 1 ? 's' : ''}
-                </span>
-              )}
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            <input
+              type="checkbox"
+              checked={selectedForCombine.includes(sheet.id)}
+              onChange={() => toggleSelection(sheet.id)}
+              className="mt-1 w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+            />
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-lg truncate">{sheet.title}</CardTitle>
+              <div className="flex items-center gap-2 mt-2">
+                <Badge variant="outline" className="text-xs">Cheat Sheet</Badge>
+                {sheet.products && sheet.products.length > 0 && (
+                  <span className="text-xs text-slate-500 truncate">
+                    {sheet.products.length} product{sheet.products.length > 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <DropdownMenu>
@@ -288,7 +371,7 @@ Generate an improved version with the same structure. Keep it professional and p
           </p>
         </div>
 
-        <div className="mb-6">
+        <div className="mb-6 space-y-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <Input
@@ -298,6 +381,48 @@ Generate an improved version with the same structure. Keep it professional and p
               className="pl-10 h-12 bg-white border-slate-200"
             />
           </div>
+
+          {selectedForCombine.length > 0 && (
+            <Card className="border-2 border-blue-200 bg-blue-50">
+              <CardContent className="py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-blue-600">{selectedForCombine.length}</Badge>
+                      <span className="text-sm font-medium text-slate-700">
+                        cheat sheet{selectedForCombine.length > 1 ? 's' : ''} selected
+                      </span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedForCombine([])}
+                      className="h-8"
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                  <Button
+                    onClick={combineIntoUltimateGuide}
+                    disabled={isCombining || selectedForCombine.length < 2}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    {isCombining ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        Create Ultimate Guide
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <Tabs defaultValue="all" className="w-full">

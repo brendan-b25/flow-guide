@@ -1,25 +1,25 @@
+import CheatSheetGenerator from './pages/CheatSheetGenerator';
 import DocumentGenerator from './pages/DocumentGenerator';
 import DocumentTemplates from './pages/DocumentTemplates';
 import Home from './pages/Home';
 import ManualEditor from './pages/ManualEditor';
 import ManualView from './pages/ManualView';
 import Manuals from './pages/Manuals';
-import Templates from './pages/Templates';
-import CheatSheetGenerator from './pages/CheatSheetGenerator';
 import SavedDocuments from './pages/SavedDocuments';
+import Templates from './pages/Templates';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
+    "CheatSheetGenerator": CheatSheetGenerator,
     "DocumentGenerator": DocumentGenerator,
     "DocumentTemplates": DocumentTemplates,
     "Home": Home,
     "ManualEditor": ManualEditor,
     "ManualView": ManualView,
     "Manuals": Manuals,
-    "Templates": Templates,
-    "CheatSheetGenerator": CheatSheetGenerator,
     "SavedDocuments": SavedDocuments,
+    "Templates": Templates,
 }
 
 export const pagesConfig = {
