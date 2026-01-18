@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Loader2, Sparkles, Plus, X, Upload, FileText, Save, Download, Edit2, Trash2, Search, RefreshCw, Combine, MoreVertical, Ruler } from 'lucide-react';
+import { Loader2, Sparkles, Plus, X, Upload, FileText, Save, Download, Edit2, Trash2, Search, RefreshCw, Combine, MoreVertical, Ruler, Image as ImageIcon } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -40,6 +40,7 @@ export default function CheatSheetGenerator() {
   const [showRenameDialog, setShowRenameDialog] = useState(false);
   const [renamingSheet, setRenamingSheet] = useState(null);
   const [newSheetName, setNewSheetName] = useState('');
+  const [generatingImageFor, setGeneratingImageFor] = useState(null);
   const queryClient = useQueryClient();
 
   const { data: savedSheets = [] } = useQuery({
@@ -122,9 +123,11 @@ Generate a structured cheat sheet with:
   - items: Array of key points/steps with measurements in the preferred units (keep concise)
   - type: "dosage", "steps", "tips", "safety", "troubleshooting", or "general"
 
-For products with dosing information (pools, chemicals, etc.), create clear dosage tables/guidelines using the specified units.
+For products with dosing information (pools, chemicals, etc.), create clear dosage tables using the 'table' field with headers and rows.
 For multi-product sheets, organize by product or by task/use case.
-Use Australian English. Focus on quick reference - make it scannable and accurate.`,
+Use Australian English. Focus on quick reference - make it scannable and accurate.
+
+When a section would benefit from a table (dosage charts, measurements, schedules), include it using the table field with headers and rows arrays.`,
         file_urls: fileUrls.length > 0 ? fileUrls : undefined,
         response_json_schema: {
           type: "object",
@@ -225,7 +228,7 @@ Use Australian English. Focus on quick reference - make it scannable and accurat
     y += 8;
 
     // Sections
-    generatedSheet.sections.forEach(section => {
+    generatedSheet.sections.forEach((section, idx) => {
       if (y > pageHeight - 50) {
         pdf.addPage();
         y = margin;
@@ -355,6 +358,24 @@ Keep it scannable and practical. Use Australian English.`,
         })
       );
 
+      if (section.table && section.table.headers && section.table.rows) {
+        sections.push(
+          new Paragraph({
+            text: section.table.headers.join(' | '),
+            bold: true,
+            spacing: { after: 100 }
+          })
+        );
+        section.table.rows.forEach(row => {
+          sections.push(
+            new Paragraph({
+              text: row.join(' | '),
+              spacing: { after: 100 }
+            })
+          );
+        });
+      }
+
       section.items.forEach(item => {
         sections.push(
           new Paragraph({
@@ -394,6 +415,15 @@ Keep it scannable and practical. Use Australian English.`,
 
     content.sections.forEach(section => {
       data.push([section.heading]);
+      
+      if (section.table && section.table.headers && section.table.rows) {
+        data.push(section.table.headers);
+        section.table.rows.forEach(row => {
+          data.push(row);
+        });
+        data.push([]);
+      }
+      
       section.items.forEach(item => {
         data.push(['', item]);
       });
@@ -452,6 +482,16 @@ Keep it scannable and practical. Use Australian English.`,
 
       addText(section.heading, 12, true, sectionColors[section.type] || [0, 0, 0]);
       y += 2;
+
+      if (section.table && section.table.headers && section.table.rows) {
+        addText(section.table.headers.join(' | '), 9, true);
+        y += 1;
+        section.table.rows.forEach(row => {
+          addText(row.join(' | '), 8);
+          y += 1;
+        });
+        y += 2;
+      }
 
       section.items.forEach(item => {
         addText(`• ${item}`, 9);
@@ -587,6 +627,31 @@ Return the cheat sheet with the same structure:
     } catch (error) {
       console.error('Rename error:', error);
       alert('Failed to rename cheat sheet.');
+    }
+  };
+
+  const generateIllustration = async (sectionIndex) => {
+    const section = generatedSheet.sections[sectionIndex];
+    setGeneratingImageFor(sectionIndex);
+
+    try {
+      const { url } = await base44.integrations.Core.GenerateImage({
+        prompt: `Create a clear, professional illustration for a cheat sheet section titled "${section.heading}". 
+        
+Section content: ${section.items.join('. ')}
+
+Style: Clean, simple diagram or infographic that visually explains the concept. Use clear colors and labels. Make it educational and easy to understand at a glance.`
+      });
+
+      const updatedSections = [...generatedSheet.sections];
+      updatedSections[sectionIndex] = { ...section, image_url: url };
+      
+      setGeneratedSheet({ ...generatedSheet, sections: updatedSections });
+    } catch (error) {
+      console.error('Image generation error:', error);
+      alert('Failed to generate illustration.');
+    } finally {
+      setGeneratingImageFor(null);
     }
   };
 
@@ -877,11 +942,65 @@ Remove duplicates, organize logically, and make it scannable. Use Australian Eng
                     />
                   ) : (
                     generatedSheet.sections.map((section, idx) => (
-                      <div key={idx} className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-2xl">{sectionIcons[section.type]}</span>
-                          <h3 className="text-lg font-semibold text-slate-900">{section.heading}</h3>
+                      <div key={idx} className="space-y-3 border-b border-slate-200 pb-4 last:border-0">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-2xl">{sectionIcons[section.type]}</span>
+                            <h3 className="text-lg font-semibold text-slate-900">{section.heading}</h3>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => generateIllustration(idx)}
+                            disabled={generatingImageFor === idx}
+                            className="text-xs h-8"
+                          >
+                            {generatingImageFor === idx ? (
+                              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                            ) : (
+                              <ImageIcon className="w-3 h-3 mr-1" />
+                            )}
+                            {section.image_url ? 'Regenerate' : 'Add'} Illustration
+                          </Button>
                         </div>
+                        
+                        {section.image_url && (
+                          <div className="ml-8">
+                            <img 
+                              src={section.image_url} 
+                              alt={section.heading}
+                              className="rounded-lg border border-slate-200 max-w-md w-full"
+                            />
+                          </div>
+                        )}
+                        
+                        {section.table && (
+                          <div className="ml-8 overflow-x-auto">
+                            <table className="min-w-full border border-slate-300 rounded-lg overflow-hidden">
+                              <thead className="bg-slate-100">
+                                <tr>
+                                  {section.table.headers.map((header, hIdx) => (
+                                    <th key={hIdx} className="px-4 py-2 text-left text-sm font-semibold text-slate-700 border-b border-slate-300">
+                                      {header}
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white">
+                                {section.table.rows.map((row, rIdx) => (
+                                  <tr key={rIdx} className="border-b border-slate-200 last:border-0">
+                                    {row.map((cell, cIdx) => (
+                                      <td key={cIdx} className="px-4 py-2 text-sm text-slate-700">
+                                        {cell}
+                                      </td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                        
                         <ul className="space-y-1 ml-8">
                           {section.items.map((item, itemIdx) => (
                             <li key={itemIdx} className="text-slate-700 flex items-start gap-2">
