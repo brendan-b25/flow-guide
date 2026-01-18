@@ -29,6 +29,7 @@ export default function SavedDocuments() {
   const [showEnhancements, setShowEnhancements] = useState(false);
   const [suggestedEnhancements, setSuggestedEnhancements] = useState([]);
   const [isGeneratingEnhancements, setIsGeneratingEnhancements] = useState(false);
+  const [renameDialog, setRenameDialog] = useState({ open: false, item: null, type: null, newName: '' });
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -598,6 +599,10 @@ Remove duplicates, organize logically by topic/workflow, add cross-references wh
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setRenameDialog({ open: true, item: manual, type: 'procedure', newName: manual.title })}>
+                <Edit2 className="w-3 h-3 mr-2" />
+                Rename
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate(createPageUrl(`ManualEditor?id=${manual.id}`))}>
                 <Edit2 className="w-3 h-3 mr-2" />
                 Edit Procedure
