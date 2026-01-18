@@ -419,7 +419,7 @@ Remove duplicates, organize logically, and make it scannable. Use Australian Eng
                         <Input
                           type="file"
                           accept=".pdf,.doc,.docx,.txt,image/*"
-                          onChange={(e) => handleFileUpload(index, e.target.files[0])}
+                          onChange={(e) => e.target.files?.[0] && handleFileUpload(index, e.target.files[0])}
                           className="bg-white"
                         />
                         {product.file && (
