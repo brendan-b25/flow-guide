@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, FileText, Copy, Edit2, Trash2, Download, RefreshCw, Sparkles, Loader2 } from 'lucide-react';
+import { Search, FileText, Copy, Edit2, Trash2, Download, RefreshCw, Sparkles, Loader2, ArrowLeft, X } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,6 +21,8 @@ export default function SavedDocuments() {
   const [isEditing, setIsEditing] = useState(false);
   const [selectedForCombine, setSelectedForCombine] = useState([]);
   const [isCombining, setIsCombining] = useState(false);
+  const [openedDocument, setOpenedDocument] = useState(null);
+  const [documentType, setDocumentType] = useState(null);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -162,6 +164,22 @@ Generate an improved version with the same structure. Keep it professional and p
     );
   };
 
+  const openDocument = (doc, type) => {
+    setOpenedDocument(doc);
+    setDocumentType(type);
+  };
+
+  const closeDocument = () => {
+    setOpenedDocument(null);
+    setDocumentType(null);
+  };
+
+  const openEditForCurrentDoc = () => {
+    if (openedDocument && documentType) {
+      openEditDialog(openedDocument, documentType);
+    }
+  };
+
   const combineIntoUltimateGuide = async () => {
     if (selectedForCombine.length < 2) {
       alert('Please select at least 2 cheat sheets to combine');
@@ -248,8 +266,11 @@ Remove duplicates, organize logically by topic/workflow, add cross-references wh
               onChange={() => toggleSelection(sheet.id)}
               className="mt-1 w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
             />
-            <div className="flex-1 min-w-0">
-              <CardTitle className="text-lg truncate">{sheet.title}</CardTitle>
+            <button 
+              onClick={() => openDocument(sheet, 'cheatsheet')}
+              className="flex-1 min-w-0 text-left"
+            >
+              <CardTitle className="text-lg truncate hover:text-blue-600 transition-colors">{sheet.title}</CardTitle>
               <div className="flex items-center gap-2 mt-2">
                 <Badge variant="outline" className="text-xs">Cheat Sheet</Badge>
                 {sheet.products && sheet.products.length > 0 && (
@@ -258,7 +279,7 @@ Remove duplicates, organize logically by topic/workflow, add cross-references wh
                   </span>
                 )}
               </div>
-            </div>
+            </button>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -306,15 +327,18 @@ Remove duplicates, organize logically by topic/workflow, add cross-references wh
     <Card key={doc.id} className="group hover:shadow-lg transition-all">
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <CardTitle className="text-lg truncate">{doc.title}</CardTitle>
+          <button 
+            onClick={() => openDocument(doc, 'document')}
+            className="flex-1 min-w-0 text-left"
+          >
+            <CardTitle className="text-lg truncate hover:text-blue-600 transition-colors">{doc.title}</CardTitle>
             <div className="flex items-center gap-2 mt-2">
               <Badge variant="outline" className="text-xs">Document</Badge>
               {doc.category && doc.category !== 'other' && (
                 <Badge variant="secondary" className="text-xs capitalize">{doc.category}</Badge>
               )}
             </div>
-          </div>
+          </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100">
@@ -358,6 +382,110 @@ Remove duplicates, organize logically by topic/workflow, add cross-references wh
   );
 
   const totalItems = cheatSheets.length + docTemplates.length;
+
+  const sectionIcons = {
+    dosage: '💧',
+    steps: '📋',
+    tips: '💡',
+    safety: '⚠️',
+    troubleshooting: '🔧',
+    general: '📌'
+  };
+
+  if (openedDocument) {
+    const isCheatSheet = documentType === 'cheatsheet';
+    const content = openedDocument.content;
+
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-6 flex items-center justify-between">
+            <Button
+              variant="outline"
+              onClick={closeDocument}
+              className="gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to List
+            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={openEditForCurrentDoc}
+                className="gap-2 border-blue-200 text-blue-700 hover:bg-blue-50"
+              >
+                <RefreshCw className="w-4 h-4" />
+                AI Edit
+              </Button>
+            </div>
+          </div>
+
+          <Card className="shadow-lg border-0">
+            <CardHeader>
+              <CardTitle className="text-3xl">{content?.title || openedDocument.title}</CardTitle>
+              {content?.summary && (
+                <p className="text-slate-600 mt-2">{content.summary}</p>
+              )}
+              {content?.description && (
+                <p className="text-slate-600 mt-2">{content.description}</p>
+              )}
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {isCheatSheet ? (
+                content?.sections?.map((section, idx) => (
+                  <div key={idx} className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl">{sectionIcons[section.type]}</span>
+                      <h3 className="text-xl font-semibold text-slate-900">{section.heading}</h3>
+                    </div>
+                    <ul className="space-y-2 ml-10">
+                      {section.items?.map((item, itemIdx) => (
+                        <li key={itemIdx} className="text-slate-700 flex items-start gap-2">
+                          <span className="text-blue-600 font-bold">•</span>
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))
+              ) : (
+                content?.sections?.map((section, idx) => (
+                  <div key={idx} className="space-y-3">
+                    <h3 className="text-xl font-semibold text-slate-900">{section.heading}</h3>
+                    {section.type === 'table' && section.tableData ? (
+                      <div className="overflow-x-auto">
+                        <table className="w-full border border-slate-200 rounded-lg">
+                          <tbody>
+                            {section.tableData.map((row, rowIdx) => (
+                              <tr key={rowIdx} className={rowIdx === 0 ? 'bg-slate-100 font-medium' : 'bg-white'}>
+                                {row.map((cell, cellIdx) => (
+                                  <td key={cellIdx} className="border border-slate-200 px-4 py-2">
+                                    {cell}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : section.type === 'list' && section.listItems ? (
+                      <ul className="list-disc list-inside space-y-1 text-slate-700">
+                        {section.listItems.map((item, itemIdx) => (
+                          <li key={itemIdx}>{item}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-slate-700 whitespace-pre-line">{section.content}</p>
+                    )}
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
