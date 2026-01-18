@@ -303,7 +303,15 @@ Keep it scannable and practical. Use Australian English.`,
                     type: "array",
                     items: { type: "string" }
                   },
-                  type: { type: "string", enum: ["dosage", "steps", "tips", "safety", "troubleshooting", "general"] }
+                  type: { type: "string", enum: ["dosage", "steps", "tips", "safety", "troubleshooting", "general"] },
+                  image_url: { type: "string" },
+                  table: {
+                    type: "object",
+                    properties: {
+                      headers: { type: "array", items: { type: "string" } },
+                      rows: { type: "array", items: { type: "array", items: { type: "string" } } }
+                    }
+                  }
                 },
                 required: ["heading", "items", "type"]
               }
@@ -561,7 +569,15 @@ Return the cheat sheet with the same structure:
                     type: "array",
                     items: { type: "string" }
                   },
-                  type: { type: "string", enum: ["dosage", "steps", "tips", "safety", "troubleshooting", "general"] }
+                  type: { type: "string", enum: ["dosage", "steps", "tips", "safety", "troubleshooting", "general"] },
+                  image_url: { type: "string" },
+                  table: {
+                    type: "object",
+                    properties: {
+                      headers: { type: "array", items: { type: "string" } },
+                      rows: { type: "array", items: { type: "array", items: { type: "string" } } }
+                    }
+                  }
                 },
                 required: ["heading", "items", "type"]
               }
@@ -752,7 +768,15 @@ Remove duplicates, organize logically, and make it scannable. Use Australian Eng
                     type: "array",
                     items: { type: "string" }
                   },
-                  type: { type: "string", enum: ["dosage", "steps", "tips", "safety", "troubleshooting", "general"] }
+                  type: { type: "string", enum: ["dosage", "steps", "tips", "safety", "troubleshooting", "general"] },
+                  image_url: { type: "string" },
+                  table: {
+                    type: "object",
+                    properties: {
+                      headers: { type: "array", items: { type: "string" } },
+                      rows: { type: "array", items: { type: "array", items: { type: "string" } } }
+                    }
+                  }
                 },
                 required: ["heading", "items", "type"]
               }
