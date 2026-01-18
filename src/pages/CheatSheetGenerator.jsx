@@ -94,17 +94,25 @@ export default function CheatSheetGenerator() {
 
 ${productInfo}
 
+IMPORTANT: Search the web for official manufacturer information, technical specifications, and usage guidelines for each product listed above. Include:
+- Manufacturer-recommended dosages and application rates
+- Official safety warnings and handling precautions
+- Proper usage steps from manufacturer documentation
+- Expert troubleshooting advice
+- Storage requirements and shelf life
+
 Generate a structured cheat sheet with:
 - title: Catchy, descriptive title
 - summary: One-sentence overview
 - sections: Array of sections, each with:
   - heading: Section title
-  - items: Array of key points/steps (keep concise)
+  - items: Array of key points/steps based on manufacturer data (keep concise)
   - type: "dosage", "steps", "tips", "safety", "troubleshooting", or "general"
 
-For products with dosing information (pools, chemicals, etc.), create clear dosage tables/guidelines.
+For products with dosing information (pools, chemicals, etc.), create clear dosage tables/guidelines based on manufacturer specs.
 For multi-product sheets, organize by product or by task/use case.
-Use Australian English. Focus on quick reference - make it scannable.`,
+Use Australian English. Focus on quick reference - make it scannable and accurate.`,
+        add_context_from_internet: true,
         file_urls: fileUrls.length > 0 ? fileUrls : undefined,
         response_json_schema: {
           type: "object",
