@@ -6,9 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Loader2, Sparkles, Plus, X, Upload, FileText, Save, Download, Edit2, Trash2, Search, RefreshCw, Combine, MoreVertical } from 'lucide-react';
+import { Loader2, Sparkles, Plus, X, Upload, FileText, Save, Download, Edit2, Trash2, Search, RefreshCw, Combine, MoreVertical, Ruler } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import jsPDF from 'jspdf';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx';
 import * as XLSX from 'xlsx';
@@ -31,6 +32,7 @@ export default function CheatSheetGenerator() {
   const [editingSheet, setEditingSheet] = useState(null);
   const [editPrompt, setEditPrompt] = useState('');
   const [isEditingAI, setIsEditingAI] = useState(false);
+  const [unitPreference, setUnitPreference] = useState('metric');
   const queryClient = useQueryClient();
 
   const { data: savedSheets = [] } = useQuery({
@@ -89,6 +91,14 @@ export default function CheatSheetGenerator() {
         productInfo += '\n';
       }
 
+      const unitInstructions = {
+        metric: 'Use metric units (litres, millilitres, grams, kilograms, metres, centimetres). Round to convenient whole or half measurements.',
+        imperial: 'Use imperial units (gallons, fluid ounces, pounds, ounces, feet, inches). Round to convenient whole or half measurements.',
+        us: 'Use US customary units (gallons, fluid ounces, pounds, ounces, feet, inches). Round to convenient whole or half measurements.',
+        kitchen: 'Use kitchen measurements (cups, tablespoons, teaspoons, millilitres, litres). Round to convenient whole, half, or quarter measurements (e.g., 1 cup, ½ cup, 2 tbsp, 1 tsp).',
+        mixed: 'Use a practical mix of metric and kitchen measurements (litres, millilitres, cups, tablespoons, teaspoons, grams). Round to convenient whole or half measurements.'
+      };
+
       const result = await base44.integrations.Core.InvokeLLM({
         prompt: `Create a quick reference cheat sheet for the following product(s). Make it practical, easy to scan, and focused on the most important information.
 
@@ -101,15 +111,18 @@ IMPORTANT: Search the web for official manufacturer information, technical speci
 - Expert troubleshooting advice
 - Storage requirements and shelf life
 
+MEASUREMENT UNITS: ${unitInstructions[unitPreference]}
+Always convert and round measurements to convenient, easy-to-measure amounts. Prefer whole numbers or simple fractions (½, ¼, ¾).
+
 Generate a structured cheat sheet with:
 - title: Catchy, descriptive title
 - summary: One-sentence overview
 - sections: Array of sections, each with:
   - heading: Section title
-  - items: Array of key points/steps based on manufacturer data (keep concise)
+  - items: Array of key points/steps based on manufacturer data with measurements in the preferred units (keep concise)
   - type: "dosage", "steps", "tips", "safety", "troubleshooting", or "general"
 
-For products with dosing information (pools, chemicals, etc.), create clear dosage tables/guidelines based on manufacturer specs.
+For products with dosing information (pools, chemicals, etc.), create clear dosage tables/guidelines based on manufacturer specs using the specified units.
 For multi-product sheets, organize by product or by task/use case.
 Use Australian English. Focus on quick reference - make it scannable and accurate.`,
         add_context_from_internet: true,
@@ -616,6 +629,27 @@ Remove duplicates, organize logically, and make it scannable. Use Australian Eng
                 <CardDescription>Add one or more products to create a combined cheat sheet</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Unit Preference */}
+                <div className="space-y-2 pb-4 border-b border-slate-200">
+                  <Label className="flex items-center gap-2 text-slate-700">
+                    <Ruler className="w-4 h-4" />
+                    Measurement Units
+                  </Label>
+                  <Select value={unitPreference} onValueChange={setUnitPreference}>
+                    <SelectTrigger className="w-full bg-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="metric">Metric (L, mL, g, kg, m, cm)</SelectItem>
+                      <SelectItem value="imperial">Imperial (gal, fl oz, lb, oz, ft, in)</SelectItem>
+                      <SelectItem value="us">US Customary (gal, fl oz, lb, oz, ft, in)</SelectItem>
+                      <SelectItem value="kitchen">Kitchen (cups, tbsp, tsp, mL, L)</SelectItem>
+                      <SelectItem value="mixed">Mixed (Metric + Kitchen)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-slate-500">AI will convert measurements to convenient whole or half amounts</p>
+                </div>
+
                 {/* Products */}
                 {products.map((product, index) => (
                   <Card key={index} className="bg-slate-50 border-slate-200">
