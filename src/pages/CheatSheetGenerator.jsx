@@ -37,6 +37,9 @@ export default function CheatSheetGenerator() {
   const [convertToUnit, setConvertToUnit] = useState('metric');
   const [isConverting, setIsConverting] = useState(false);
   const [convertingSheet, setConvertingSheet] = useState(null);
+  const [showRenameDialog, setShowRenameDialog] = useState(false);
+  const [renamingSheet, setRenamingSheet] = useState(null);
+  const [newSheetName, setNewSheetName] = useState('');
   const queryClient = useQueryClient();
 
   const { data: savedSheets = [] } = useQuery({
@@ -550,6 +553,29 @@ Return the cheat sheet with the same structure:
     setShowConvertDialog(true);
   };
 
+  const openRenameDialog = (sheet) => {
+    setRenamingSheet(sheet);
+    setNewSheetName(sheet.title);
+    setShowRenameDialog(true);
+  };
+
+  const handleRenameSheet = async () => {
+    if (!newSheetName.trim() || !renamingSheet) return;
+
+    try {
+      await base44.entities.CheatSheet.update(renamingSheet.id, {
+        title: newSheetName.trim()
+      });
+      queryClient.invalidateQueries(['cheat-sheets']);
+      setShowRenameDialog(false);
+      setRenamingSheet(null);
+      setNewSheetName('');
+    } catch (error) {
+      console.error('Rename error:', error);
+      alert('Failed to rename cheat sheet.');
+    }
+  };
+
   const handleAiEnhance = async () => {
     if (!aiEnhancePrompt.trim() || !generatedSheet) return;
 
@@ -986,6 +1012,10 @@ Remove duplicates, organize logically, and make it scannable. Use Australian Eng
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openRenameDialog(sheet)}>
+                                  <Edit2 className="w-3 h-3 mr-2" />
+                                  Rename
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => openEditDialog(sheet)}>
                                   <RefreshCw className="w-3 h-3 mr-2" />
                                   AI Edit
@@ -1136,6 +1166,47 @@ Remove duplicates, organize logically, and make it scannable. Use Australian Eng
                   </>
                 )}
               </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Rename Dialog */}
+        <Dialog open={showRenameDialog} onOpenChange={setShowRenameDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Edit2 className="w-5 h-5 text-blue-600" />
+                Rename Cheat Sheet
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label htmlFor="new-name">New Name</Label>
+                <Input
+                  id="new-name"
+                  value={newSheetName}
+                  onChange={(e) => setNewSheetName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleRenameSheet()}
+                  placeholder="Enter new name..."
+                  autoFocus
+                />
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowRenameDialog(false)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleRenameSheet}
+                  disabled={!newSheetName.trim()}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                >
+                  Rename
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>
