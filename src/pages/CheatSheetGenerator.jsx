@@ -176,6 +176,13 @@ Use Australian English. Focus on quick reference - make it scannable and accurat
 
       alert('✅ Cheat sheet saved!');
       queryClient.invalidateQueries(['cheat-sheets']);
+      
+      // Clear the generator for a new cheat sheet
+      setGeneratedSheet(null);
+      setSheetTitle('');
+      setProducts([{ name: '', info: '', file: null }]);
+      setEditMode(false);
+      setEditedContent('');
     } catch (error) {
       console.error('Save error:', error);
       alert('Failed to save cheat sheet.');
