@@ -6,13 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Loader2, Sparkles, Plus, X, Upload, Type, FileText, Save, Download, Edit2, Trash2, Search, RefreshCw, Combine } from 'lucide-react';
+import { Loader2, Sparkles, Plus, X, Upload, FileText, Save, Download, Edit2, Trash2, Search, RefreshCw, Combine } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import jsPDF from 'jspdf';
 
 export default function CheatSheetGenerator() {
   const [products, setProducts] = useState([{ name: '', info: '', file: null }]);
-  const [inputMethod, setInputMethod] = useState('type'); // 'type' or 'upload'
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedSheet, setGeneratedSheet] = useState(null);
   const [editMode, setEditMode] = useState(false);
@@ -68,13 +67,19 @@ export default function CheatSheetGenerator() {
       const fileUrls = [];
 
       for (const product of validProducts) {
+        productInfo += `Product: ${product.name}\n`;
+        
+        if (product.info.trim()) {
+          productInfo += `Typed Information: ${product.info}\n`;
+        }
+        
         if (product.file) {
           const { file_url } = await base44.integrations.Core.UploadFile({ file: product.file });
           fileUrls.push(file_url);
-          productInfo += `Product: ${product.name}\n[File uploaded]\n\n`;
-        } else {
-          productInfo += `Product: ${product.name}\nInformation: ${product.info}\n\n`;
+          productInfo += `[Additional file uploaded for this product]\n`;
         }
+        
+        productInfo += '\n';
       }
 
       const result = await base44.integrations.Core.InvokeLLM({
@@ -380,28 +385,6 @@ Remove duplicates, organize logically, and make it scannable. Use Australian Eng
                 <CardDescription>Add one or more products to create a combined cheat sheet</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Input Method Toggle */}
-                <div className="flex gap-2 p-1 bg-slate-100 rounded-lg w-fit">
-                  <button
-                    onClick={() => setInputMethod('type')}
-                    className={`px-4 py-2 rounded-md flex items-center gap-2 transition-all ${
-                      inputMethod === 'type' ? 'bg-white shadow-sm text-blue-700 font-medium' : 'text-slate-600'
-                    }`}
-                  >
-                    <Type className="w-4 h-4" />
-                    Type
-                  </button>
-                  <button
-                    onClick={() => setInputMethod('upload')}
-                    className={`px-4 py-2 rounded-md flex items-center gap-2 transition-all ${
-                      inputMethod === 'upload' ? 'bg-white shadow-sm text-blue-700 font-medium' : 'text-slate-600'
-                    }`}
-                  >
-                    <Upload className="w-4 h-4" />
-                    Upload
-                  </button>
-                </div>
-
                 {/* Products */}
                 {products.map((product, index) => (
                   <Card key={index} className="bg-slate-50 border-slate-200">
@@ -425,26 +408,24 @@ Remove duplicates, organize logically, and make it scannable. Use Australian Eng
                         onChange={(e) => updateProduct(index, 'name', e.target.value)}
                         className="bg-white"
                       />
-                      {inputMethod === 'type' ? (
-                        <Textarea
-                          placeholder="Product information, dosing instructions, usage steps..."
-                          value={product.info}
-                          onChange={(e) => updateProduct(index, 'info', e.target.value)}
-                          className="min-h-[100px] bg-white"
+                      <Textarea
+                        placeholder="Type product information, dosing instructions, usage steps..."
+                        value={product.info}
+                        onChange={(e) => updateProduct(index, 'info', e.target.value)}
+                        className="min-h-[100px] bg-white"
+                      />
+                      <div className="space-y-2">
+                        <Label className="text-sm text-slate-600">Or upload product guide/manual (optional)</Label>
+                        <Input
+                          type="file"
+                          accept=".pdf,.doc,.docx,.txt,image/*"
+                          onChange={(e) => handleFileUpload(index, e.target.files[0])}
+                          className="bg-white"
                         />
-                      ) : (
-                        <div className="space-y-2">
-                          <Input
-                            type="file"
-                            accept=".pdf,.doc,.docx,.txt,image/*"
-                            onChange={(e) => handleFileUpload(index, e.target.files[0])}
-                            className="bg-white"
-                          />
-                          {product.file && (
-                            <p className="text-sm text-slate-600">📎 {product.file.name}</p>
-                          )}
-                        </div>
-                      )}
+                        {product.file && (
+                          <p className="text-sm text-slate-600">📎 {product.file.name}</p>
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
