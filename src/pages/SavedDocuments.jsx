@@ -42,6 +42,11 @@ export default function SavedDocuments() {
     queryFn: () => base44.entities.DocumentTemplate.list('-created_date')
   });
 
+  const { data: manuals = [] } = useQuery({
+    queryKey: ['manuals'],
+    queryFn: () => base44.entities.Manual.list('-created_date')
+  });
+
   const deleteCheatSheetMutation = useMutation({
     mutationFn: (id) => base44.entities.CheatSheet.delete(id),
     onSuccess: () => queryClient.invalidateQueries(['cheat-sheets'])
@@ -463,24 +468,46 @@ Generate an improved version with the same structure. Keep it professional and p
 
   const combineIntoUltimateGuide = async () => {
     if (selectedForCombine.length < 2) {
-      alert('Please select at least 2 cheat sheets to combine');
+      alert('Please select at least 2 items to combine');
       return;
     }
 
     setIsCombining(true);
     try {
       const selectedSheets = cheatSheets.filter(s => selectedForCombine.includes(s.id));
-      const combinedContent = selectedSheets.map(s => JSON.stringify(s.content, null, 2)).join('\n\n---\n\n');
+      const selectedDocs = docTemplates.filter(d => selectedForCombine.includes(d.id));
+      const selectedManuals = manuals.filter(m => selectedForCombine.includes(m.id));
+
+      // Fetch manual sections for selected manuals
+      const manualSectionsPromises = selectedManuals.map(m =>
+        base44.entities.ManualSection.filter({ manual_id: m.id })
+      );
+      const manualSectionsResults = await Promise.all(manualSectionsPromises);
+
+      const combinedContent = [];
+      
+      selectedSheets.forEach(s => {
+        combinedContent.push(`CHEAT SHEET: ${s.title}\n${JSON.stringify(s.content, null, 2)}`);
+      });
+      
+      selectedDocs.forEach(d => {
+        combinedContent.push(`DOCUMENT: ${d.title}\n${JSON.stringify(d.content, null, 2)}`);
+      });
+      
+      selectedManuals.forEach((m, idx) => {
+        const sections = manualSectionsResults[idx];
+        combinedContent.push(`PROCEDURE: ${m.title}\n${JSON.stringify({ description: m.description, sections: sections.map(s => ({ title: s.title, content: s.content })) }, null, 2)}`);
+      });
 
       const result = await base44.integrations.Core.InvokeLLM({
-        prompt: `Combine these ${selectedSheets.length} cheat sheets into one ultimate comprehensive reference guide.
+        prompt: `Combine these ${selectedForCombine.length} documents (cheat sheets, documents, and procedures) into one ultimate comprehensive reference guide.
 
-${combinedContent}
+${combinedContent.join('\n\n---\n\n')}
 
 Create a professional, well-organized ultimate guide with:
-- title: A comprehensive title that covers all topics (e.g., "Ultimate Pool Maintenance Guide")
+- title: A comprehensive title that covers all topics
 - summary: Brief overview of what's covered
-- sections: Organized sections that intelligently combine and enhance information from all sheets
+- sections: Organized sections that intelligently combine and enhance information from all sources
   - Each section should have: heading, items (array of detailed points), and type (dosage/steps/tips/safety/troubleshooting/general)
   
 Remove duplicates, organize logically by topic/workflow, add cross-references where relevant, and enhance with additional expert tips. Make it the definitive guide. Use Australian English.`,
@@ -534,6 +561,61 @@ Remove duplicates, organize logically by topic/workflow, add cross-references wh
 
   const filteredDocTemplates = docTemplates.filter(d =>
     d.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredManuals = manuals.filter(m =>
+    m.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const renderManualCard = (manual) => (
+    <Card key={manual.id} className={`group hover:shadow-lg transition-all ${selectedForCombine.includes(manual.id) ? 'ring-2 ring-blue-500' : ''}`}>
+      <CardHeader>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            <input
+              type="checkbox"
+              checked={selectedForCombine.includes(manual.id)}
+              onChange={() => toggleSelection(manual.id)}
+              className="mt-1 w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+            />
+            <button 
+              onClick={() => navigate(createPageUrl(`ManualView?id=${manual.id}`))}
+              className="flex-1 min-w-0 text-left"
+            >
+              <CardTitle className="text-lg truncate hover:text-blue-600 transition-colors">{manual.title}</CardTitle>
+              <div className="flex items-center gap-2 mt-2">
+                <Badge variant="outline" className="text-xs">Procedure</Badge>
+                {manual.status === 'published' && (
+                  <Badge className="text-xs bg-green-100 text-green-800">Published</Badge>
+                )}
+              </div>
+            </button>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100">
+                <FileText className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => navigate(createPageUrl(`ManualEditor?id=${manual.id}`))}>
+                <Edit2 className="w-3 h-3 mr-2" />
+                Edit Procedure
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate(createPageUrl(`ManualView?id=${manual.id}`))}>
+                <FileText className="w-3 h-3 mr-2" />
+                View Procedure
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {manual.description && (
+          <p className="text-sm text-slate-600 line-clamp-2">{manual.description}</p>
+        )}
+      </CardContent>
+    </Card>
   );
 
   const renderCheatSheetCard = (sheet) => (
@@ -605,21 +687,29 @@ Remove duplicates, organize logically by topic/workflow, add cross-references wh
   );
 
   const renderDocTemplateCard = (doc) => (
-    <Card key={doc.id} className="group hover:shadow-lg transition-all">
+    <Card key={doc.id} className={`group hover:shadow-lg transition-all ${selectedForCombine.includes(doc.id) ? 'ring-2 ring-blue-500' : ''}`}>
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
-          <button 
-            onClick={() => openDocument(doc, 'document')}
-            className="flex-1 min-w-0 text-left"
-          >
-            <CardTitle className="text-lg truncate hover:text-blue-600 transition-colors">{doc.title}</CardTitle>
-            <div className="flex items-center gap-2 mt-2">
-              <Badge variant="outline" className="text-xs">Document</Badge>
-              {doc.category && doc.category !== 'other' && (
-                <Badge variant="secondary" className="text-xs capitalize">{doc.category}</Badge>
-              )}
-            </div>
-          </button>
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            <input
+              type="checkbox"
+              checked={selectedForCombine.includes(doc.id)}
+              onChange={() => toggleSelection(doc.id)}
+              className="mt-1 w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+            />
+            <button 
+              onClick={() => openDocument(doc, 'document')}
+              className="flex-1 min-w-0 text-left"
+            >
+              <CardTitle className="text-lg truncate hover:text-blue-600 transition-colors">{doc.title}</CardTitle>
+              <div className="flex items-center gap-2 mt-2">
+                <Badge variant="outline" className="text-xs">Document</Badge>
+                {doc.category && doc.category !== 'other' && (
+                  <Badge variant="secondary" className="text-xs capitalize">{doc.category}</Badge>
+                )}
+              </div>
+            </button>
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100">
@@ -662,7 +752,7 @@ Remove duplicates, organize logically by topic/workflow, add cross-references wh
     </Card>
   );
 
-  const totalItems = cheatSheets.length + docTemplates.length;
+  const totalItems = cheatSheets.length + docTemplates.length + manuals.length;
 
   const sectionIcons = {
     dosage: '💧',
@@ -884,7 +974,7 @@ Remove duplicates, organize logically by topic/workflow, add cross-references wh
                     <div className="flex items-center gap-2">
                       <Badge className="bg-blue-600">{selectedForCombine.length}</Badge>
                       <span className="text-sm font-medium text-slate-700">
-                        cheat sheet{selectedForCombine.length > 1 ? 's' : ''} selected
+                        item{selectedForCombine.length > 1 ? 's' : ''} selected
                       </span>
                     </div>
                     <Button
@@ -924,6 +1014,7 @@ Remove duplicates, organize logically by topic/workflow, add cross-references wh
             <TabsTrigger value="all">All ({totalItems})</TabsTrigger>
             <TabsTrigger value="cheatsheets">Cheat Sheets ({cheatSheets.length})</TabsTrigger>
             <TabsTrigger value="documents">Documents ({docTemplates.length})</TabsTrigger>
+            <TabsTrigger value="procedures">Procedures ({manuals.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="all" className="space-y-6">
@@ -939,6 +1030,7 @@ Remove duplicates, organize logically by topic/workflow, add cross-references wh
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredCheatSheets.map(renderCheatSheetCard)}
                 {filteredDocTemplates.map(renderDocTemplateCard)}
+                {filteredManuals.map(renderManualCard)}
               </div>
             )}
           </TabsContent>
@@ -973,6 +1065,23 @@ Remove duplicates, organize logically by topic/workflow, add cross-references wh
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredDocTemplates.map(renderDocTemplateCard)}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="procedures">
+            {filteredManuals.length === 0 ? (
+              <Card className="border-0 shadow-lg">
+                <CardContent className="py-12 text-center">
+                  <FileText className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                  <p className="text-slate-600">
+                    {manuals.length === 0 ? 'No procedures saved' : 'No results found'}
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredManuals.map(renderManualCard)}
               </div>
             )}
           </TabsContent>
