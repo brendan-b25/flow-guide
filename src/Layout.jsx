@@ -15,8 +15,8 @@ export default function Layout({ children, currentPageName }) {
     { name: 'Procedures', icon: BookOpen, page: 'Manuals' },
     { name: 'Templates', icon: FileText, page: 'Templates' },
     { name: 'Documents', icon: FileText, page: 'DocumentGenerator' },
-    { name: 'Doc Templates', icon: FileText, page: 'DocumentTemplates' },
     { name: 'Cheat Sheets', icon: FileText, page: 'CheatSheetGenerator' },
+    { name: 'Saved', icon: FileText, page: 'SavedDocuments' },
   ];
 
   return (
