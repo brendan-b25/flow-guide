@@ -6,9 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Loader2, Sparkles, Plus, X, Upload, FileText, Save, Download, Edit2, Trash2, Search, RefreshCw, Combine } from 'lucide-react';
+import { Loader2, Sparkles, Plus, X, Upload, FileText, Save, Download, Edit2, Trash2, Search, RefreshCw, Combine, MoreVertical } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import jsPDF from 'jspdf';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx';
+import * as XLSX from 'xlsx';
 
 export default function CheatSheetGenerator() {
   const [products, setProducts] = useState([{ name: '', info: '', file: null }]);
@@ -24,6 +27,10 @@ export default function CheatSheetGenerator() {
   const [showEnhanceDialog, setShowEnhanceDialog] = useState(false);
   const [selectedSheets, setSelectedSheets] = useState([]);
   const [isCombining, setIsCombining] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingSheet, setEditingSheet] = useState(null);
+  const [editPrompt, setEditPrompt] = useState('');
+  const [isEditingAI, setIsEditingAI] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: savedSheets = [] } = useQuery({
@@ -226,6 +233,222 @@ Use Australian English. Focus on quick reference - make it scannable.`,
     setProducts(sheet.products?.map(p => ({ ...p, file: null })) || [{ name: '', info: '', file: null }]);
     setEditMode(false);
     setSelectedSheets([]);
+  };
+
+  const openEditDialog = (sheet) => {
+    setEditingSheet(sheet);
+    setEditPrompt('');
+    setShowEditDialog(true);
+  };
+
+  const handleAIEditSheet = async () => {
+    if (!editPrompt.trim() || !editingSheet) return;
+
+    setIsEditingAI(true);
+    try {
+      const result = await base44.integrations.Core.InvokeLLM({
+        prompt: `Edit this cheat sheet based on the request: "${editPrompt}"
+
+Current cheat sheet:
+${JSON.stringify(editingSheet.content, null, 2)}
+
+Generate an improved version with the same structure:
+- title: Catchy title
+- summary: One-sentence overview
+- sections: Array with heading, items (array of strings), and type (dosage/steps/tips/safety/troubleshooting/general)
+
+Keep it scannable and practical. Use Australian English.`,
+        response_json_schema: {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            summary: { type: "string" },
+            sections: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  heading: { type: "string" },
+                  items: {
+                    type: "array",
+                    items: { type: "string" }
+                  },
+                  type: { type: "string", enum: ["dosage", "steps", "tips", "safety", "troubleshooting", "general"] }
+                },
+                required: ["heading", "items", "type"]
+              }
+            }
+          },
+          required: ["title", "summary", "sections"]
+        }
+      });
+
+      await base44.entities.CheatSheet.update(editingSheet.id, {
+        title: result.title,
+        content: result
+      });
+
+      queryClient.invalidateQueries(['cheat-sheets']);
+      setShowEditDialog(false);
+      setEditingSheet(null);
+      alert('✅ Cheat sheet updated!');
+    } catch (error) {
+      console.error('Edit error:', error);
+      alert('Failed to edit cheat sheet.');
+    } finally {
+      setIsEditingAI(false);
+    }
+  };
+
+  const exportSheetToWord = async (sheet) => {
+    const content = sheet.content;
+    const sections = [];
+
+    sections.push(
+      new Paragraph({
+        text: content.title,
+        heading: HeadingLevel.HEADING_1,
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 200 }
+      }),
+      new Paragraph({
+        text: content.summary,
+        italics: true,
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 400 }
+      })
+    );
+
+    content.sections.forEach(section => {
+      sections.push(
+        new Paragraph({
+          text: section.heading,
+          heading: HeadingLevel.HEADING_2,
+          spacing: { before: 300, after: 200 }
+        })
+      );
+
+      section.items.forEach(item => {
+        sections.push(
+          new Paragraph({
+            text: item,
+            bullet: { level: 0 },
+            spacing: { after: 100 }
+          })
+        );
+      });
+    });
+
+    const doc = new Document({
+      sections: [{
+        properties: {},
+        children: sections
+      }]
+    });
+
+    const blob = await Packer.toBlob(doc);
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${content.title.replace(/[^a-z0-9]/gi, '_')}.docx`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    a.remove();
+  };
+
+  const exportSheetToExcel = (sheet) => {
+    const content = sheet.content;
+    const data = [];
+
+    data.push([content.title]);
+    data.push([content.summary]);
+    data.push([]);
+
+    content.sections.forEach(section => {
+      data.push([section.heading]);
+      section.items.forEach(item => {
+        data.push(['', item]);
+      });
+      data.push([]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Cheat Sheet');
+    XLSX.writeFile(wb, `${content.title.replace(/[^a-z0-9]/gi, '_')}.xlsx`);
+  };
+
+  const exportSheetToPDF = (sheet) => {
+    const content = sheet.content;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const margin = 15;
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const maxWidth = pageWidth - (margin * 2);
+    let y = margin;
+
+    const addText = (text, fontSize, bold = false, color = [0, 0, 0]) => {
+      pdf.setFontSize(fontSize);
+      pdf.setFont('helvetica', bold ? 'bold' : 'normal');
+      pdf.setTextColor(...color);
+      const lines = pdf.splitTextToSize(text, maxWidth);
+      lines.forEach(line => {
+        if (y > pageHeight - 20) {
+          pdf.addPage();
+          y = margin;
+        }
+        pdf.text(line, margin, y);
+        y += fontSize * 0.4;
+      });
+    };
+
+    addText(content.title, 18, true, [30, 64, 175]);
+    y += 3;
+    addText(content.summary, 10, false, [71, 85, 105]);
+    y += 8;
+
+    content.sections.forEach(section => {
+      if (y > pageHeight - 50) {
+        pdf.addPage();
+        y = margin;
+      }
+
+      const sectionColors = {
+        dosage: [59, 130, 246],
+        steps: [16, 185, 129],
+        tips: [245, 158, 11],
+        safety: [239, 68, 68],
+        troubleshooting: [139, 92, 246],
+        general: [71, 85, 105]
+      };
+
+      addText(section.heading, 12, true, sectionColors[section.type] || [0, 0, 0]);
+      y += 2;
+
+      section.items.forEach(item => {
+        addText(`• ${item}`, 9);
+        y += 1;
+      });
+
+      y += 5;
+    });
+
+    pdf.save(`${content.title.replace(/[^a-z0-9]/gi, '_')}.pdf`);
+  };
+
+  const exportSheetToJSON = (sheet) => {
+    const content = sheet.content;
+    const dataStr = JSON.stringify(content, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${content.title.replace(/[^a-z0-9]/gi, '_')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    a.remove();
   };
 
   const handleAiEnhance = async () => {
@@ -622,18 +845,50 @@ Remove duplicates, organize logically, and make it scannable. Use Australian Eng
                                 </p>
                               )}
                             </button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                if (confirm('Delete this cheat sheet?')) {
-                                  deleteMutation.mutate(sheet.id);
-                                }
-                              }}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-600 h-auto p-1"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity h-auto p-1"
+                                >
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openEditDialog(sheet)}>
+                                  <RefreshCw className="w-3 h-3 mr-2" />
+                                  AI Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => exportSheetToPDF(sheet)}>
+                                  <Download className="w-3 h-3 mr-2" />
+                                  Download PDF
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => exportSheetToWord(sheet)}>
+                                  <Download className="w-3 h-3 mr-2" />
+                                  Download Word
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => exportSheetToExcel(sheet)}>
+                                  <Download className="w-3 h-3 mr-2" />
+                                  Download Excel
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => exportSheetToJSON(sheet)}>
+                                  <Download className="w-3 h-3 mr-2" />
+                                  Download JSON
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => {
+                                    if (confirm('Delete this cheat sheet?')) {
+                                      deleteMutation.mutate(sheet.id);
+                                    }
+                                  }}
+                                  className="text-red-600"
+                                >
+                                  <Trash2 className="w-3 h-3 mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </CardContent>
                       </Card>
@@ -690,6 +945,52 @@ Remove duplicates, organize logically, and make it scannable. Use Australian Eng
                   <>
                     <Sparkles className="w-4 h-4 mr-2" />
                     Apply Enhancement
+                  </>
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* AI Edit Sheet Dialog */}
+        <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <RefreshCw className="w-5 h-5 text-blue-600" />
+                AI Edit Cheat Sheet
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              {editingSheet && (
+                <div className="text-sm text-slate-600 bg-slate-50 rounded p-3">
+                  Editing: <span className="font-medium">{editingSheet.title}</span>
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="edit-prompt">What changes do you want?</Label>
+                <Textarea
+                  id="edit-prompt"
+                  placeholder="e.g., Add more details, simplify, reorganize sections, add safety warnings..."
+                  value={editPrompt}
+                  onChange={(e) => setEditPrompt(e.target.value)}
+                  className="min-h-[120px]"
+                />
+              </div>
+              <Button
+                onClick={handleAIEditSheet}
+                disabled={!editPrompt.trim() || isEditingAI}
+                className="w-full bg-blue-600 hover:bg-blue-700"
+              >
+                {isEditingAI ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Apply Changes
                   </>
                 )}
               </Button>
