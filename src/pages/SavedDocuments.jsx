@@ -6,8 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, FileText, Copy, Edit2, Trash2, Download, RefreshCw, Sparkles, Loader2, ArrowLeft, X } from 'lucide-react';
+import { Search, FileText, Copy, Edit2, Trash2, Download, RefreshCw, Sparkles, Loader2, ArrowLeft, X, FileDown } from 'lucide-react';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -148,6 +152,15 @@ Generate an improved version with the same structure. Keep it professional and p
         queryClient.invalidateQueries(['doc-templates']);
       }
 
+      // Update opened document if it's the same one being edited
+      if (openedDocument && openedDocument.id === editDialog.item.id) {
+        setOpenedDocument({
+          ...openedDocument,
+          title: result.title,
+          content: result
+        });
+      }
+
       setEditDialog({ open: false, item: null, type: null });
       alert('✅ Updated successfully!');
     } catch (error) {
@@ -178,6 +191,140 @@ Generate an improved version with the same structure. Keep it professional and p
     if (openedDocument && documentType) {
       openEditDialog(openedDocument, documentType);
     }
+  };
+
+  const exportOpenedDocToWord = async () => {
+    const content = openedDocument.content;
+    const isCheatSheet = documentType === 'cheatsheet';
+
+    const children = [
+      new Paragraph({
+        text: content?.title || openedDocument.title,
+        heading: HeadingLevel.HEADING_1,
+      }),
+    ];
+
+    if (content?.summary) {
+      children.push(new Paragraph({ text: content.summary, spacing: { after: 200 } }));
+    }
+    if (content?.description) {
+      children.push(new Paragraph({ text: content.description, spacing: { after: 200 } }));
+    }
+
+    if (isCheatSheet) {
+      content?.sections?.forEach((section) => {
+        children.push(new Paragraph({ text: section.heading, heading: HeadingLevel.HEADING_2, spacing: { before: 200 } }));
+        section.items?.forEach((item) => {
+          children.push(new Paragraph({ text: `• ${item}`, spacing: { after: 100 } }));
+        });
+      });
+    } else {
+      content?.sections?.forEach((section) => {
+        children.push(new Paragraph({ text: section.heading, heading: HeadingLevel.HEADING_2, spacing: { before: 200 } }));
+        children.push(new Paragraph({ text: section.content || '', spacing: { after: 100 } }));
+      });
+    }
+
+    const doc = new Document({ sections: [{ children }] });
+    const blob = await Packer.toBlob(doc);
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${content?.title || 'document'}.docx`;
+    a.click();
+  };
+
+  const exportOpenedDocToExcel = () => {
+    const content = openedDocument.content;
+    const isCheatSheet = documentType === 'cheatsheet';
+    const data = [[content?.title || openedDocument.title], ['']];
+
+    if (content?.summary) data.push(['Summary:', content.summary], ['']);
+    if (content?.description) data.push(['Description:', content.description], ['']);
+
+    if (isCheatSheet) {
+      content?.sections?.forEach((section) => {
+        data.push([section.heading], ['']);
+        section.items?.forEach((item) => data.push([item]));
+        data.push(['']);
+      });
+    } else {
+      content?.sections?.forEach((section) => {
+        data.push([section.heading], ['']);
+        data.push([section.content || '']);
+        data.push(['']);
+      });
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Document');
+    XLSX.writeFile(wb, `${content?.title || 'document'}.xlsx`);
+  };
+
+  const exportOpenedDocToPDF = () => {
+    const content = openedDocument.content;
+    const isCheatSheet = documentType === 'cheatsheet';
+    const doc = new jsPDF();
+    let y = 20;
+
+    doc.setFontSize(20);
+    doc.text(content?.title || openedDocument.title, 20, y);
+    y += 15;
+
+    if (content?.summary) {
+      doc.setFontSize(10);
+      const lines = doc.splitTextToSize(content.summary, 170);
+      doc.text(lines, 20, y);
+      y += lines.length * 5 + 10;
+    }
+
+    if (content?.description) {
+      doc.setFontSize(10);
+      const lines = doc.splitTextToSize(content.description, 170);
+      doc.text(lines, 20, y);
+      y += lines.length * 5 + 10;
+    }
+
+    doc.setFontSize(12);
+    if (isCheatSheet) {
+      content?.sections?.forEach((section) => {
+        if (y > 270) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.setFontSize(14);
+        doc.text(section.heading, 20, y);
+        y += 10;
+        doc.setFontSize(10);
+        section.items?.forEach((item) => {
+          if (y > 280) {
+            doc.addPage();
+            y = 20;
+          }
+          const lines = doc.splitTextToSize(`• ${item}`, 170);
+          doc.text(lines, 25, y);
+          y += lines.length * 5 + 2;
+        });
+        y += 5;
+      });
+    } else {
+      content?.sections?.forEach((section) => {
+        if (y > 270) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.setFontSize(14);
+        doc.text(section.heading, 20, y);
+        y += 10;
+        doc.setFontSize(10);
+        const lines = doc.splitTextToSize(section.content || '', 170);
+        doc.text(lines, 20, y);
+        y += lines.length * 5 + 10;
+      });
+    }
+
+    doc.save(`${content?.title || 'document'}.pdf`);
   };
 
   const combineIntoUltimateGuide = async () => {
@@ -409,6 +556,28 @@ Remove duplicates, organize logically by topic/workflow, add cross-references wh
               Back to List
             </Button>
             <div className="flex gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-2">
+                    <FileDown className="w-4 h-4" />
+                    Export
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={exportOpenedDocToWord}>
+                    <FileText className="w-3 h-3 mr-2" />
+                    Export to Word (.docx)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportOpenedDocToExcel}>
+                    <FileText className="w-3 h-3 mr-2" />
+                    Export to Excel (.xlsx)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportOpenedDocToPDF}>
+                    <FileText className="w-3 h-3 mr-2" />
+                    Export to PDF
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button
                 variant="outline"
                 onClick={openEditForCurrentDoc}
