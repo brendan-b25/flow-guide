@@ -103,17 +103,20 @@ export default function CheatSheetGenerator() {
         mixed: 'Use a practical mix of metric and kitchen measurements (litres, millilitres, cups, tablespoons, teaspoons, grams). Round to convenient whole or half measurements.'
       };
 
+      const hasFiles = fileUrls.length > 0;
+      const useWebSearch = !hasFiles; // Only use web search if no files uploaded
+
       const result = await base44.integrations.Core.InvokeLLM({
         prompt: `Create a quick reference cheat sheet for the following product(s). Make it practical, easy to scan, and focused on the most important information.
 
 ${productInfo}
 
-IMPORTANT: Search the web for official manufacturer information, technical specifications, and usage guidelines for each product listed above. Include:
+${useWebSearch ? `IMPORTANT: Search the web for official manufacturer information, technical specifications, and usage guidelines for each product listed above. Include:
 - Manufacturer-recommended dosages and application rates
 - Official safety warnings and handling precautions
 - Proper usage steps from manufacturer documentation
 - Expert troubleshooting advice
-- Storage requirements and shelf life
+- Storage requirements and shelf life` : ''}
 
 MEASUREMENT UNITS: ${unitInstructions[unitPreference]}
 Always convert and round measurements to convenient, easy-to-measure amounts. Prefer whole numbers or simple fractions (½, ¼, ¾).
@@ -123,14 +126,14 @@ Generate a structured cheat sheet with:
 - summary: One-sentence overview
 - sections: Array of sections, each with:
   - heading: Section title
-  - items: Array of key points/steps based on manufacturer data with measurements in the preferred units (keep concise)
+  - items: Array of key points/steps${useWebSearch ? ' based on manufacturer data' : ''} with measurements in the preferred units (keep concise)
   - type: "dosage", "steps", "tips", "safety", "troubleshooting", or "general"
 
-For products with dosing information (pools, chemicals, etc.), create clear dosage tables/guidelines based on manufacturer specs using the specified units.
+For products with dosing information (pools, chemicals, etc.), create clear dosage tables/guidelines${useWebSearch ? ' based on manufacturer specs' : ''} using the specified units.
 For multi-product sheets, organize by product or by task/use case.
 Use Australian English. Focus on quick reference - make it scannable and accurate.`,
-        add_context_from_internet: true,
-        file_urls: fileUrls.length > 0 ? fileUrls : undefined,
+        add_context_from_internet: useWebSearch,
+        file_urls: hasFiles ? fileUrls : undefined,
         response_json_schema: {
           type: "object",
           properties: {
