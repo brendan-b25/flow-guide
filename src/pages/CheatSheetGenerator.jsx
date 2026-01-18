@@ -530,6 +530,13 @@ Return the cheat sheet with the same structure:
           content: result
         });
         queryClient.invalidateQueries(['cheat-sheets']);
+        
+        // Load the converted sheet into view
+        setGeneratedSheet(result);
+        setSheetTitle(result.title);
+        setProducts(sheet.products?.map(p => ({ ...p, file: null })) || [{ name: '', info: '', file: null }]);
+        setEditMode(false);
+        
         alert('✅ Measurements converted!');
       } else {
         // Converting the current generated sheet
