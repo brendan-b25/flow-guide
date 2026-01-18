@@ -58,6 +58,37 @@ export default function SavedDocuments() {
     onSuccess: () => queryClient.invalidateQueries(['doc-templates'])
   });
 
+  const renameMutation = useMutation({
+    mutationFn: async ({ id, type, newName }) => {
+      if (type === 'cheatsheet') {
+        return base44.entities.CheatSheet.update(id, { title: newName });
+      } else if (type === 'document') {
+        return base44.entities.DocumentTemplate.update(id, { title: newName });
+      } else if (type === 'procedure') {
+        return base44.entities.Manual.update(id, { title: newName });
+      }
+    },
+    onSuccess: (_, variables) => {
+      if (variables.type === 'cheatsheet') {
+        queryClient.invalidateQueries(['cheat-sheets']);
+      } else if (variables.type === 'document') {
+        queryClient.invalidateQueries(['doc-templates']);
+      } else if (variables.type === 'procedure') {
+        queryClient.invalidateQueries(['manuals']);
+      }
+      setRenameDialog({ open: false, item: null, type: null, newName: '' });
+    }
+  });
+
+  const handleRename = () => {
+    if (!renameDialog.newName.trim()) return;
+    renameMutation.mutate({
+      id: renameDialog.item.id,
+      type: renameDialog.type,
+      newName: renameDialog.newName.trim()
+    });
+  };
+
   const copyCheatSheet = async (sheet) => {
     try {
       await base44.entities.CheatSheet.create({
@@ -656,12 +687,16 @@ Remove duplicates, organize logically by topic/workflow, add cross-references wh
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setRenameDialog({ open: true, item: sheet, type: 'cheatsheet', newName: sheet.title })}>
+                <Edit2 className="w-3 h-3 mr-2" />
+                Rename
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate(createPageUrl('CheatSheetGenerator'))}>
                 <Edit2 className="w-3 h-3 mr-2" />
                 Open in Editor
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => openEditDialog(sheet, 'cheatsheet')}>
-                <RefreshCw className="w-3 h-3 mr-2" />
+                <Sparkles className="w-3 h-3 mr-2" />
                 AI Edit
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => copyCheatSheet(sheet)}>
@@ -722,12 +757,16 @@ Remove duplicates, organize logically by topic/workflow, add cross-references wh
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setRenameDialog({ open: true, item: doc, type: 'document', newName: doc.title })}>
+                <Edit2 className="w-3 h-3 mr-2" />
+                Rename
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate(createPageUrl('DocumentGenerator'))}>
                 <Edit2 className="w-3 h-3 mr-2" />
                 Open in Editor
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => openEditDialog(doc, 'document')}>
-                <RefreshCw className="w-3 h-3 mr-2" />
+                <Sparkles className="w-3 h-3 mr-2" />
                 AI Edit
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => copyDocTemplate(doc)}>
@@ -1091,6 +1130,46 @@ Remove duplicates, organize logically by topic/workflow, add cross-references wh
             )}
           </TabsContent>
         </Tabs>
+
+        <Dialog open={renameDialog.open} onOpenChange={(open) => !renameMutation.isPending && setRenameDialog({ open, item: null, type: null, newName: '' })}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Rename {renameDialog.type === 'cheatsheet' ? 'Cheat Sheet' : renameDialog.type === 'document' ? 'Document' : 'Procedure'}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Input
+                value={renameDialog.newName}
+                onChange={(e) => setRenameDialog({ ...renameDialog, newName: e.target.value })}
+                placeholder="Enter new name"
+                className="w-full"
+                onKeyDown={(e) => e.key === 'Enter' && handleRename()}
+              />
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setRenameDialog({ open: false, item: null, type: null, newName: '' })}
+                  disabled={renameMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleRename}
+                  disabled={!renameDialog.newName.trim() || renameMutation.isPending}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {renameMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Renaming...
+                    </>
+                  ) : (
+                    'Rename'
+                  )}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={editDialog.open} onOpenChange={(open) => !open && setEditDialog({ open: false, item: null, type: null })}>
           <DialogContent className="sm:max-w-lg">
