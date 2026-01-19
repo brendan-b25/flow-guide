@@ -31,200 +31,360 @@ export default function AIFace({ isListening, isProcessing, isIdle }) {
       const centerX = width / 2;
       const centerY = height / 2;
 
-      // Head/Hair silhouette
+      // Hair with realistic strands
       ctx.beginPath();
-      ctx.ellipse(centerX, centerY - 10, 85, 95, 0, 0, Math.PI * 2);
-      const hairGradient = ctx.createLinearGradient(centerX, centerY - 100, centerX, centerY);
-      hairGradient.addColorStop(0, '#475569');
-      hairGradient.addColorStop(1, '#64748B');
+      ctx.ellipse(centerX, centerY - 15, 88, 98, 0, 0, Math.PI * 2);
+      const hairGradient = ctx.createRadialGradient(centerX - 20, centerY - 60, 20, centerX, centerY - 20, 100);
+      hairGradient.addColorStop(0, '#3F4B5B');
+      hairGradient.addColorStop(0.4, '#4B5768');
+      hairGradient.addColorStop(0.7, '#556272');
+      hairGradient.addColorStop(1, '#2D3748');
       ctx.fillStyle = hairGradient;
       ctx.fill();
 
-      // Face shape (skin tone)
-      ctx.beginPath();
-      ctx.ellipse(centerX, centerY + 5, 75, 85, 0, 0.2, Math.PI - 0.2);
-      const skinGradient = ctx.createRadialGradient(centerX, centerY - 20, 10, centerX, centerY + 20, 90);
-      skinGradient.addColorStop(0, '#FFF5F0');
-      skinGradient.addColorStop(0.5, '#FFE8DC');
-      skinGradient.addColorStop(1, '#F5DDD0');
-      ctx.fillStyle = skinGradient;
-      ctx.fill();
-
-      // Neck shadow
-      ctx.beginPath();
-      ctx.ellipse(centerX, centerY + 80, 30, 15, 0, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(203, 213, 225, 0.3)';
-      ctx.fill();
-
-      // Cheek blush
-      ctx.beginPath();
-      ctx.ellipse(centerX - 40, centerY + 15, 15, 10, 0, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(251, 207, 232, 0.4)';
-      ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(centerX + 40, centerY + 15, 15, 10, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Nose
-      ctx.beginPath();
-      ctx.moveTo(centerX, centerY);
-      ctx.quadraticCurveTo(centerX + 5, centerY + 15, centerX + 8, centerY + 18);
-      ctx.strokeStyle = 'rgba(100, 116, 139, 0.3)';
+      // Hair texture strands
+      ctx.strokeStyle = 'rgba(71, 85, 105, 0.3)';
       ctx.lineWidth = 1.5;
-      ctx.stroke();
-
-      // Eyebrows with gradient
-      const browY = centerY - 30;
-      const leftBrowX = centerX - 30;
-      const rightBrowX = centerX + 30;
-
-      ctx.beginPath();
-      ctx.moveTo(leftBrowX - 15, browY + (isProcessing ? -2 : 0));
-      ctx.quadraticCurveTo(leftBrowX, browY - 3 + (isProcessing ? -2 : 0), leftBrowX + 15, browY + (isProcessing ? 2 : 0));
-      ctx.strokeStyle = '#475569';
-      ctx.lineWidth = 3;
-      ctx.lineCap = 'round';
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.moveTo(rightBrowX - 15, browY + (isProcessing ? 2 : 0));
-      ctx.quadraticCurveTo(rightBrowX, browY - 3 + (isProcessing ? -2 : 0), rightBrowX + 15, browY + (isProcessing ? -2 : 0));
-      ctx.stroke();
-
-      // Eyes
-      const leftEyeX = centerX - 30;
-      const rightEyeX = centerX + 30;
-      const eyeY = centerY - 15;
-      const blinkPhase = Math.sin(time * 2);
-      const eyeHeight = isListening || isProcessing ? 14 : (blinkPhase < -0.95 ? 2 : 14);
-
-      // Eye whites
-      ctx.beginPath();
-      ctx.ellipse(leftEyeX + eyePosition.x * 4, eyeY + eyePosition.y * 4, 12, eyeHeight, 0, 0, Math.PI * 2);
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(100, 116, 139, 0.2)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.ellipse(rightEyeX + eyePosition.x * 4, eyeY + eyePosition.y * 4, 12, eyeHeight, 0, 0, Math.PI * 2);
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fill();
-      ctx.stroke();
-
-      if (eyeHeight > 5) {
-        // Iris (blue)
+      for (let i = -3; i <= 3; i++) {
         ctx.beginPath();
-        ctx.arc(leftEyeX + eyePosition.x * 4, eyeY + eyePosition.y * 4, 7, 0, Math.PI * 2);
-        const irisGradient = ctx.createRadialGradient(
-          leftEyeX + eyePosition.x * 4 - 2, eyeY + eyePosition.y * 4 - 2, 0,
-          leftEyeX + eyePosition.x * 4, eyeY + eyePosition.y * 4, 7
-        );
-        irisGradient.addColorStop(0, '#60A5FA');
-        irisGradient.addColorStop(0.5, '#3B82F6');
-        irisGradient.addColorStop(1, '#2563EB');
-        ctx.fillStyle = irisGradient;
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.arc(rightEyeX + eyePosition.x * 4, eyeY + eyePosition.y * 4, 7, 0, Math.PI * 2);
-        const irisGradient2 = ctx.createRadialGradient(
-          rightEyeX + eyePosition.x * 4 - 2, eyeY + eyePosition.y * 4 - 2, 0,
-          rightEyeX + eyePosition.x * 4, eyeY + eyePosition.y * 4, 7
-        );
-        irisGradient2.addColorStop(0, '#60A5FA');
-        irisGradient2.addColorStop(0.5, '#3B82F6');
-        irisGradient2.addColorStop(1, '#2563EB');
-        ctx.fillStyle = irisGradient2;
-        ctx.fill();
-
-        // Pupils
-        ctx.beginPath();
-        ctx.arc(leftEyeX + eyePosition.x * 4, eyeY + eyePosition.y * 4, 3, 0, Math.PI * 2);
-        ctx.fillStyle = '#1E293B';
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.arc(rightEyeX + eyePosition.x * 4, eyeY + eyePosition.y * 4, 3, 0, Math.PI * 2);
-        ctx.fillStyle = '#1E293B';
-        ctx.fill();
-
-        // Eye highlights
-        ctx.beginPath();
-        ctx.arc(leftEyeX + eyePosition.x * 4 - 2, eyeY + eyePosition.y * 4 - 2, 2, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.arc(rightEyeX + eyePosition.x * 4 - 2, eyeY + eyePosition.y * 4 - 2, 2, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.moveTo(centerX + i * 15, centerY - 90);
+        ctx.quadraticCurveTo(centerX + i * 12, centerY - 60, centerX + i * 18, centerY - 30);
+        ctx.stroke();
       }
 
-      // Eyelashes
+      // Forehead highlight
+      ctx.beginPath();
+      ctx.ellipse(centerX, centerY - 35, 35, 20, 0, 0, Math.PI);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.fill();
+
+      // Face structure with realistic contours
+      ctx.save();
+      ctx.beginPath();
+      ctx.ellipse(centerX, centerY + 8, 72, 82, 0, 0, Math.PI * 2);
+      ctx.clip();
+      
+      // Base skin tone
+      const faceGradient = ctx.createRadialGradient(centerX, centerY - 30, 20, centerX, centerY + 30, 100);
+      faceGradient.addColorStop(0, '#FFEEE5');
+      faceGradient.addColorStop(0.3, '#FFE4D6');
+      faceGradient.addColorStop(0.6, '#F5D8C8');
+      faceGradient.addColorStop(1, '#E8C9B8');
+      ctx.fillStyle = faceGradient;
+      ctx.fillRect(centerX - 80, centerY - 90, 160, 180);
+      
+      // Facial shadows for depth
+      ctx.fillStyle = 'rgba(180, 140, 120, 0.15)';
+      ctx.beginPath();
+      ctx.ellipse(centerX - 50, centerY, 20, 60, -0.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(centerX + 50, centerY, 20, 60, 0.2, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Cheekbone highlights
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+      ctx.beginPath();
+      ctx.ellipse(centerX - 35, centerY - 5, 25, 15, -0.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(centerX + 35, centerY - 5, 25, 15, 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.restore();
+
+      // Jawline shadow
+      ctx.beginPath();
+      ctx.ellipse(centerX, centerY + 70, 50, 20, 0, 0, Math.PI);
+      ctx.fillStyle = 'rgba(180, 140, 120, 0.2)';
+      ctx.fill();
+
+      // Neck
+      ctx.beginPath();
+      ctx.rect(centerX - 25, centerY + 75, 50, 30);
+      const neckGradient = ctx.createLinearGradient(centerX - 25, centerY + 75, centerX + 25, centerY + 75);
+      neckGradient.addColorStop(0, 'rgba(230, 200, 180, 0.8)');
+      neckGradient.addColorStop(0.5, 'rgba(240, 215, 195, 1)');
+      neckGradient.addColorStop(1, 'rgba(230, 200, 180, 0.8)');
+      ctx.fillStyle = neckGradient;
+      ctx.fill();
+
+      // Nose bridge and tip
+      ctx.strokeStyle = 'rgba(180, 140, 120, 0.25)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY - 25);
+      ctx.lineTo(centerX, centerY + 8);
+      ctx.stroke();
+      
+      // Nose sides
+      ctx.strokeStyle = 'rgba(180, 140, 120, 0.2)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(centerX - 8, centerY + 8);
+      ctx.quadraticCurveTo(centerX - 5, centerY + 12, centerX - 10, centerY + 15);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(centerX + 8, centerY + 8);
+      ctx.quadraticCurveTo(centerX + 5, centerY + 12, centerX + 10, centerY + 15);
+      ctx.stroke();
+      
+      // Nose highlight
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.beginPath();
+      ctx.ellipse(centerX - 2, centerY + 2, 3, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Realistic eyebrows with individual hair strokes
+      const browY = centerY - 32;
+      const leftBrowX = centerX - 32;
+      const rightBrowX = centerX + 32;
+
+      ctx.strokeStyle = '#3F4B5B';
+      ctx.lineWidth = 1.2;
+      ctx.lineCap = 'round';
+      
+      // Left eyebrow with hair strokes
+      for (let i = 0; i < 12; i++) {
+        const angle = -0.3 + i * 0.05;
+        const startX = leftBrowX - 16 + i * 2.8;
+        const startY = browY + Math.sin(angle * 2) * 2 + (isProcessing ? -2 : 0);
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(startX + Math.cos(angle) * 6, startY + Math.sin(angle) * 6);
+        ctx.stroke();
+      }
+      
+      // Right eyebrow with hair strokes
+      for (let i = 0; i < 12; i++) {
+        const angle = 0.3 - i * 0.05;
+        const startX = rightBrowX - 16 + i * 2.8;
+        const startY = browY + Math.sin(angle * 2) * 2 + (isProcessing ? -2 : 0);
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(startX + Math.cos(angle) * 6, startY + Math.sin(angle) * 6);
+        ctx.stroke();
+      }
+
+      // Realistic eyes
+      const leftEyeX = centerX - 32;
+      const rightEyeX = centerX + 32;
+      const eyeY = centerY - 18;
+      const blinkPhase = Math.sin(time * 2);
+      const eyeHeight = isListening || isProcessing ? 11 : (blinkPhase < -0.95 ? 2 : 11);
+
+      // Eye socket shadows
+      ctx.fillStyle = 'rgba(180, 140, 120, 0.2)';
+      ctx.beginPath();
+      ctx.ellipse(leftEyeX, eyeY, 16, 18, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(rightEyeX, eyeY, 16, 18, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Eye whites with veins
+      ctx.fillStyle = '#F8F9FA';
+      ctx.beginPath();
+      ctx.ellipse(leftEyeX + eyePosition.x * 3, eyeY + eyePosition.y * 3, 11, eyeHeight, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.beginPath();
+      ctx.ellipse(rightEyeX + eyePosition.x * 3, eyeY + eyePosition.y * 3, 11, eyeHeight, 0, 0, Math.PI * 2);
+      ctx.fill();
+
       if (eyeHeight > 5) {
-        ctx.strokeStyle = '#475569';
-        ctx.lineWidth = 1;
-        for (let i = 0; i < 5; i++) {
-          const angle = -0.5 + i * 0.25;
+        // Detailed iris with realistic texture
+        const drawIris = (x, y) => {
+          // Outer iris ring
           ctx.beginPath();
-          ctx.moveTo(leftEyeX + Math.cos(angle) * 12, eyeY - eyeHeight + Math.sin(angle) * 12);
-          ctx.lineTo(leftEyeX + Math.cos(angle) * 16, eyeY - eyeHeight + Math.sin(angle) * 16);
+          ctx.arc(x, y, 6.5, 0, Math.PI * 2);
+          const outerGradient = ctx.createRadialGradient(x, y, 0, x, y, 6.5);
+          outerGradient.addColorStop(0, '#5BA3F5');
+          outerGradient.addColorStop(0.3, '#4A90E2');
+          outerGradient.addColorStop(0.6, '#3B7FD8');
+          outerGradient.addColorStop(1, '#2C5FA8');
+          ctx.fillStyle = outerGradient;
+          ctx.fill();
+
+          // Iris pattern lines
+          ctx.strokeStyle = 'rgba(30, 64, 128, 0.3)';
+          ctx.lineWidth = 0.5;
+          for (let i = 0; i < 12; i++) {
+            const angle = (Math.PI * 2 * i) / 12;
+            ctx.beginPath();
+            ctx.moveTo(x + Math.cos(angle) * 2, y + Math.sin(angle) * 2);
+            ctx.lineTo(x + Math.cos(angle) * 6, y + Math.sin(angle) * 6);
+            ctx.stroke();
+          }
+
+          // Inner iris detail
+          ctx.beginPath();
+          ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+          const innerGradient = ctx.createRadialGradient(x - 1, y - 1, 0, x, y, 3.5);
+          innerGradient.addColorStop(0, '#7BB8F7');
+          innerGradient.addColorStop(1, '#4A90E2');
+          ctx.fillStyle = innerGradient;
+          ctx.fill();
+
+          // Pupil with realistic depth
+          ctx.beginPath();
+          ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+          const pupilGradient = ctx.createRadialGradient(x - 0.5, y - 0.5, 0, x, y, 2.5);
+          pupilGradient.addColorStop(0, '#000000');
+          pupilGradient.addColorStop(1, '#1a1a1a');
+          ctx.fillStyle = pupilGradient;
+          ctx.fill();
+
+          // Multiple highlights for realism
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+          ctx.beginPath();
+          ctx.arc(x - 1.5, y - 1.5, 1.5, 0, Math.PI * 2);
+          ctx.fill();
+          
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+          ctx.beginPath();
+          ctx.arc(x + 1.5, y + 1.5, 0.8, 0, Math.PI * 2);
+          ctx.fill();
+        };
+
+        drawIris(leftEyeX + eyePosition.x * 3, eyeY + eyePosition.y * 3);
+        drawIris(rightEyeX + eyePosition.x * 3, eyeY + eyePosition.y * 3);
+      }
+
+      // Realistic eyelashes - upper
+      if (eyeHeight > 5) {
+        ctx.strokeStyle = '#2D3748';
+        ctx.lineCap = 'round';
+        for (let i = 0; i < 9; i++) {
+          const angle = -0.7 + i * 0.18;
+          ctx.lineWidth = 0.8;
+          ctx.beginPath();
+          ctx.moveTo(leftEyeX + Math.cos(angle) * 11, eyeY - eyeHeight + Math.sin(angle) * 11);
+          ctx.lineTo(leftEyeX + Math.cos(angle) * 17, eyeY - eyeHeight + Math.sin(angle) * 17);
           ctx.stroke();
 
           ctx.beginPath();
-          ctx.moveTo(rightEyeX + Math.cos(angle) * 12, eyeY - eyeHeight + Math.sin(angle) * 12);
-          ctx.lineTo(rightEyeX + Math.cos(angle) * 16, eyeY - eyeHeight + Math.sin(angle) * 16);
+          ctx.moveTo(rightEyeX + Math.cos(angle) * 11, eyeY - eyeHeight + Math.sin(angle) * 11);
+          ctx.lineTo(rightEyeX + Math.cos(angle) * 17, eyeY - eyeHeight + Math.sin(angle) * 17);
+          ctx.stroke();
+        }
+        
+        // Lower eyelashes
+        ctx.lineWidth = 0.6;
+        for (let i = 0; i < 5; i++) {
+          const angle = 0.2 + i * 0.15;
+          ctx.beginPath();
+          ctx.moveTo(leftEyeX + Math.cos(angle) * 11, eyeY + eyeHeight + Math.sin(angle) * 11);
+          ctx.lineTo(leftEyeX + Math.cos(angle) * 14, eyeY + eyeHeight + Math.sin(angle) * 14);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(rightEyeX + Math.cos(angle) * 11, eyeY + eyeHeight + Math.sin(angle) * 11);
+          ctx.lineTo(rightEyeX + Math.cos(angle) * 14, eyeY + eyeHeight + Math.sin(angle) * 14);
           ctx.stroke();
         }
       }
 
-      // Mouth with lips
-      const mouthY = centerY + 30;
+      // Eye crease/fold
+      ctx.strokeStyle = 'rgba(180, 140, 120, 0.25)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(leftEyeX, eyeY - 16, 14, 0.3, Math.PI - 0.3);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(rightEyeX, eyeY - 16, 14, 0.3, Math.PI - 0.3);
+      ctx.stroke();
+
+      // Realistic mouth and lips
+      const mouthY = centerY + 32;
       
       if (isListening) {
-        // Open mouth with lips
-        const mouthOpen = 8 + Math.sin(time * 8) * 4;
+        // Open mouth animation
+        const mouthOpen = 10 + Math.sin(time * 8) * 5;
         
-        // Upper lip
+        // Mouth interior shadow
         ctx.beginPath();
-        ctx.ellipse(centerX, mouthY - mouthOpen / 2, 22, 4, 0, 0, Math.PI);
-        ctx.fillStyle = '#E57373';
+        ctx.ellipse(centerX, mouthY, 20, mouthOpen, 0, 0, Math.PI * 2);
+        ctx.fillStyle = '#5C3A3A';
         ctx.fill();
         
-        // Lower lip
+        // Upper lip with cupid's bow
         ctx.beginPath();
-        ctx.ellipse(centerX, mouthY + mouthOpen / 2, 22, 5, 0, 0, Math.PI);
-        ctx.fillStyle = '#EF5350';
+        ctx.moveTo(centerX - 22, mouthY - mouthOpen / 2);
+        ctx.quadraticCurveTo(centerX - 10, mouthY - mouthOpen / 2 - 2, centerX - 3, mouthY - mouthOpen / 2);
+        ctx.quadraticCurveTo(centerX, mouthY - mouthOpen / 2 - 3, centerX + 3, mouthY - mouthOpen / 2);
+        ctx.quadraticCurveTo(centerX + 10, mouthY - mouthOpen / 2 - 2, centerX + 22, mouthY - mouthOpen / 2);
+        const upperLipGrad = ctx.createLinearGradient(centerX, mouthY - mouthOpen / 2 - 5, centerX, mouthY - mouthOpen / 2 + 2);
+        upperLipGrad.addColorStop(0, '#D17272');
+        upperLipGrad.addColorStop(1, '#C66565');
+        ctx.fillStyle = upperLipGrad;
         ctx.fill();
         
-        // Mouth interior
+        // Lower lip with volume
         ctx.beginPath();
-        ctx.ellipse(centerX, mouthY, 18, mouthOpen, 0, 0, Math.PI * 2);
-        ctx.fillStyle = '#7C4A4A';
+        ctx.arc(centerX, mouthY + mouthOpen / 2 + 2, 24, 0, Math.PI);
+        const lowerLipGrad = ctx.createLinearGradient(centerX, mouthY + mouthOpen / 2, centerX, mouthY + mouthOpen / 2 + 8);
+        lowerLipGrad.addColorStop(0, '#E88B8B');
+        lowerLipGrad.addColorStop(0.5, '#DC7B7B');
+        lowerLipGrad.addColorStop(1, '#C96969');
+        ctx.fillStyle = lowerLipGrad;
         ctx.fill();
+        
+        // Lip highlight
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+        ctx.beginPath();
+        ctx.ellipse(centerX, mouthY + mouthOpen / 2 + 2, 15, 3, 0, 0, Math.PI);
+        ctx.fill();
+        
       } else if (isProcessing) {
-        // Thinking expression (slight smile)
+        // Slight smile - thinking
         ctx.beginPath();
-        ctx.arc(centerX, mouthY, 22, 0.15, Math.PI - 0.15);
-        ctx.strokeStyle = '#B0756F';
-        ctx.lineWidth = 3;
-        ctx.lineCap = 'round';
-        ctx.stroke();
-      } else {
-        // Gentle smile with lips
-        ctx.beginPath();
-        ctx.arc(centerX, mouthY - 2, 20, 0.1, Math.PI - 0.1);
-        ctx.strokeStyle = '#E57373';
+        ctx.arc(centerX, mouthY, 24, 0.12, Math.PI - 0.12);
+        const lipGrad = ctx.createLinearGradient(centerX, mouthY - 5, centerX, mouthY + 5);
+        lipGrad.addColorStop(0, '#D17272');
+        lipGrad.addColorStop(1, '#E88B8B');
+        ctx.strokeStyle = lipGrad;
         ctx.lineWidth = 4;
         ctx.lineCap = 'round';
         ctx.stroke();
         
-        // Lip highlight
-        ctx.beginPath();
-        ctx.arc(centerX, mouthY - 2, 20, 0.1, Math.PI - 0.1);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        // Lip shine
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
         ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(centerX, mouthY, 24, 0.12, Math.PI - 0.12);
+        ctx.stroke();
+        
+      } else {
+        // Natural resting smile
+        ctx.beginPath();
+        ctx.moveTo(centerX - 22, mouthY);
+        ctx.quadraticCurveTo(centerX - 10, mouthY - 1, centerX - 3, mouthY - 1);
+        ctx.quadraticCurveTo(centerX, mouthY - 2, centerX + 3, mouthY - 1);
+        ctx.quadraticCurveTo(centerX + 10, mouthY - 1, centerX + 22, mouthY);
+        const upperGrad = ctx.createLinearGradient(centerX, mouthY - 3, centerX, mouthY + 1);
+        upperGrad.addColorStop(0, '#D17272');
+        upperGrad.addColorStop(1, '#C66565');
+        ctx.strokeStyle = upperGrad;
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+        
+        // Lower lip
+        ctx.beginPath();
+        ctx.arc(centerX, mouthY + 3, 20, 0.05, Math.PI - 0.05);
+        const lowerGrad = ctx.createLinearGradient(centerX, mouthY + 1, centerX, mouthY + 7);
+        lowerGrad.addColorStop(0, '#E88B8B');
+        lowerGrad.addColorStop(1, '#DC7B7B');
+        ctx.strokeStyle = lowerGrad;
+        ctx.lineWidth = 4;
+        ctx.stroke();
+        
+        // Lower lip highlight
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(centerX, mouthY + 3, 20, 0.1, Math.PI - 0.1);
         ctx.stroke();
       }
 
