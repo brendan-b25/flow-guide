@@ -162,9 +162,10 @@ export default function AIFace({ isListening, isProcessing, isIdle, customizatio
       
       // Left eyebrow with hair strokes
       for (let i = 0; i < 12; i++) {
-        const angle = -0.3 + i * 0.05;
+        const progress = i / 11;
         const startX = leftBrowX - 16 + i * 2.8;
-        const startY = browY + Math.sin(angle * 2) * 2 + (isProcessing ? -2 : 0);
+        const startY = browY - Math.sin(progress * Math.PI) * 3 + (isProcessing ? -2 : 0);
+        const angle = -1.3 + progress * 0.5;
         ctx.beginPath();
         ctx.moveTo(startX, startY);
         ctx.lineTo(startX + Math.cos(angle) * 6, startY + Math.sin(angle) * 6);
@@ -173,9 +174,10 @@ export default function AIFace({ isListening, isProcessing, isIdle, customizatio
       
       // Right eyebrow with hair strokes
       for (let i = 0; i < 12; i++) {
-        const angle = 0.3 - i * 0.05;
+        const progress = i / 11;
         const startX = rightBrowX - 16 + i * 2.8;
-        const startY = browY + Math.sin(angle * 2) * 2 + (isProcessing ? -2 : 0);
+        const startY = browY - Math.sin(progress * Math.PI) * 3 + (isProcessing ? -2 : 0);
+        const angle = Math.PI + 1.3 - progress * 0.5;
         ctx.beginPath();
         ctx.moveTo(startX, startY);
         ctx.lineTo(startX + Math.cos(angle) * 6, startY + Math.sin(angle) * 6);
@@ -442,7 +444,7 @@ export default function AIFace({ isListening, isProcessing, isIdle, customizatio
     return () => {
       if (animationFrame) cancelAnimationFrame(animationFrame);
     };
-  }, [isListening, isProcessing, eyePosition]);
+  }, [isListening, isProcessing, eyePosition, skinTone, hairColor, eyeColor, lipColor]);
 
   // Eye tracking mouse movement
   useEffect(() => {
