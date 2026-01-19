@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
-import { Sparkles, Send, Loader2, FileText, RefreshCw, Paperclip, X, Download, Copy, Edit3, Mic, MicOff, Image as ImageIcon, Layout, Palette } from 'lucide-react';
+import { Sparkles, Send, Loader2, FileText, RefreshCw, Paperclip, X, Download, Copy, Edit3, Mic, MicOff, Image as ImageIcon, Layout, Palette, Settings } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -596,6 +596,7 @@ Return the complete revised document with all requested changes applied.`,
                     isListening={isListening}
                     isProcessing={isProcessing}
                     isIdle={!isListening && !isProcessing}
+                    customization={aiCustomization}
                   />
                   <h3 className="text-lg font-semibold text-slate-900 mb-1 mt-4">
                     AI Documentation Studio
@@ -942,6 +943,107 @@ Return the complete revised document with all requested changes applied.`,
                   )}
                 </Button>
               </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* AI Settings Dialog */}
+        <Dialog open={showAISettings} onOpenChange={setShowAISettings}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Customize AI Assistant</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-6 py-4">
+              <div className="flex justify-center">
+                <AIFace 
+                  isListening={false}
+                  isProcessing={false}
+                  isIdle={true}
+                  customization={aiCustomization}
+                />
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-2 block">Skin Tone</label>
+                  <div className="flex gap-2">
+                    {['#FFE4D6', '#F5C8A3', '#D9A574', '#C68642', '#8D5524'].map(color => (
+                      <button
+                        key={color}
+                        onClick={() => setAiCustomization({...aiCustomization, skinTone: color})}
+                        className={`w-10 h-10 rounded-full border-2 ${aiCustomization.skinTone === color ? 'border-blue-600 scale-110' : 'border-slate-300'}`}
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-2 block">Hair Color</label>
+                  <div className="flex gap-2">
+                    {['#2D3748', '#4B5768', '#8B4513', '#D4A574', '#E8C9A3'].map(color => (
+                      <button
+                        key={color}
+                        onClick={() => setAiCustomization({...aiCustomization, hairColor: color})}
+                        className={`w-10 h-10 rounded-full border-2 ${aiCustomization.hairColor === color ? 'border-blue-600 scale-110' : 'border-slate-300'}`}
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-2 block">Eye Color</label>
+                  <div className="flex gap-2">
+                    {['#3B82F6', '#10B981', '#8B4513', '#6B7280', '#8B5CF6'].map(color => (
+                      <button
+                        key={color}
+                        onClick={() => setAiCustomization({...aiCustomization, eyeColor: color})}
+                        className={`w-10 h-10 rounded-full border-2 ${aiCustomization.eyeColor === color ? 'border-blue-600 scale-110' : 'border-slate-300'}`}
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-2 block">Lip Color</label>
+                  <div className="flex gap-2">
+                    {['#DC7B7B', '#E57373', '#F48FB1', '#CE93D8', '#B0756F'].map(color => (
+                      <button
+                        key={color}
+                        onClick={() => setAiCustomization({...aiCustomization, lipColor: color})}
+                        className={`w-10 h-10 rounded-full border-2 ${aiCustomization.lipColor === color ? 'border-blue-600 scale-110' : 'border-slate-300'}`}
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-2 block">Voice</label>
+                  <Select 
+                    value={aiCustomization.voice} 
+                    onValueChange={(value) => setAiCustomization({...aiCustomization, voice: value})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select voice" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="default">Default</SelectItem>
+                      {availableVoices.filter(v => v.lang.startsWith('en')).map((voice, idx) => (
+                        <SelectItem key={idx} value={voice.name}>
+                          {voice.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <Button onClick={() => setShowAISettings(false)} className="w-full">
+                Save Changes
+              </Button>
             </div>
           </DialogContent>
         </Dialog>

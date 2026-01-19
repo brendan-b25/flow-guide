@@ -1,7 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export default function AIFace({ isListening, isProcessing, isIdle }) {
+export default function AIFace({ isListening, isProcessing, isIdle, customization = {} }) {
+  const {
+    skinTone = '#FFE4D6',
+    hairColor = '#4B5768',
+    eyeColor = '#3B82F6',
+    lipColor = '#DC7B7B'
+  } = customization;
   const canvasRef = useRef(null);
   const [eyePosition, setEyePosition] = useState({ x: 0, y: 0 });
 
@@ -35,15 +41,23 @@ export default function AIFace({ isListening, isProcessing, isIdle }) {
       ctx.beginPath();
       ctx.ellipse(centerX, centerY - 15, 88, 98, 0, 0, Math.PI * 2);
       const hairGradient = ctx.createRadialGradient(centerX - 20, centerY - 60, 20, centerX, centerY - 20, 100);
-      hairGradient.addColorStop(0, '#3F4B5B');
-      hairGradient.addColorStop(0.4, '#4B5768');
-      hairGradient.addColorStop(0.7, '#556272');
-      hairGradient.addColorStop(1, '#2D3748');
+      const adjustBrightness = (color, percent) => {
+        const num = parseInt(color.replace("#",""), 16);
+        const amt = Math.round(2.55 * percent);
+        const R = (num >> 16) + amt;
+        const G = (num >> 8 & 0x00FF) + amt;
+        const B = (num & 0x0000FF) + amt;
+        return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 + (G<255?G<1?0:G:255)*0x100 + (B<255?B<1?0:B:255)).toString(16).slice(1);
+      };
+      hairGradient.addColorStop(0, adjustBrightness(hairColor, 5));
+      hairGradient.addColorStop(0.4, hairColor);
+      hairGradient.addColorStop(0.7, adjustBrightness(hairColor, -5));
+      hairGradient.addColorStop(1, adjustBrightness(hairColor, -15));
       ctx.fillStyle = hairGradient;
       ctx.fill();
 
       // Hair texture strands
-      ctx.strokeStyle = 'rgba(71, 85, 105, 0.3)';
+      ctx.strokeStyle = `${hairColor}50`;
       ctx.lineWidth = 1.5;
       for (let i = -3; i <= 3; i++) {
         ctx.beginPath();
@@ -66,10 +80,18 @@ export default function AIFace({ isListening, isProcessing, isIdle }) {
       
       // Base skin tone
       const faceGradient = ctx.createRadialGradient(centerX, centerY - 30, 20, centerX, centerY + 30, 100);
-      faceGradient.addColorStop(0, '#FFEEE5');
-      faceGradient.addColorStop(0.3, '#FFE4D6');
-      faceGradient.addColorStop(0.6, '#F5D8C8');
-      faceGradient.addColorStop(1, '#E8C9B8');
+      const adjustBrightness = (color, percent) => {
+        const num = parseInt(color.replace("#",""), 16);
+        const amt = Math.round(2.55 * percent);
+        const R = (num >> 16) + amt;
+        const G = (num >> 8 & 0x00FF) + amt;
+        const B = (num & 0x0000FF) + amt;
+        return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 + (G<255?G<1?0:G:255)*0x100 + (B<255?B<1?0:B:255)).toString(16).slice(1);
+      };
+      faceGradient.addColorStop(0, adjustBrightness(skinTone, 5));
+      faceGradient.addColorStop(0.3, skinTone);
+      faceGradient.addColorStop(0.6, adjustBrightness(skinTone, -3));
+      faceGradient.addColorStop(1, adjustBrightness(skinTone, -8));
       ctx.fillStyle = faceGradient;
       ctx.fillRect(centerX - 80, centerY - 90, 160, 180);
       
@@ -199,10 +221,18 @@ export default function AIFace({ isListening, isProcessing, isIdle }) {
           ctx.beginPath();
           ctx.arc(x, y, 6.5, 0, Math.PI * 2);
           const outerGradient = ctx.createRadialGradient(x, y, 0, x, y, 6.5);
-          outerGradient.addColorStop(0, '#5BA3F5');
-          outerGradient.addColorStop(0.3, '#4A90E2');
-          outerGradient.addColorStop(0.6, '#3B7FD8');
-          outerGradient.addColorStop(1, '#2C5FA8');
+          const adjustBrightness = (color, percent) => {
+            const num = parseInt(color.replace("#",""), 16);
+            const amt = Math.round(2.55 * percent);
+            const R = (num >> 16) + amt;
+            const G = (num >> 8 & 0x00FF) + amt;
+            const B = (num & 0x0000FF) + amt;
+            return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 + (G<255?G<1?0:G:255)*0x100 + (B<255?B<1?0:B:255)).toString(16).slice(1);
+          };
+          outerGradient.addColorStop(0, adjustBrightness(eyeColor, 15));
+          outerGradient.addColorStop(0.3, adjustBrightness(eyeColor, 8));
+          outerGradient.addColorStop(0.6, eyeColor);
+          outerGradient.addColorStop(1, adjustBrightness(eyeColor, -20));
           ctx.fillStyle = outerGradient;
           ctx.fill();
 
@@ -221,8 +251,8 @@ export default function AIFace({ isListening, isProcessing, isIdle }) {
           ctx.beginPath();
           ctx.arc(x, y, 3.5, 0, Math.PI * 2);
           const innerGradient = ctx.createRadialGradient(x - 1, y - 1, 0, x, y, 3.5);
-          innerGradient.addColorStop(0, '#7BB8F7');
-          innerGradient.addColorStop(1, '#4A90E2');
+          innerGradient.addColorStop(0, adjustBrightness(eyeColor, 20));
+          innerGradient.addColorStop(1, adjustBrightness(eyeColor, 5));
           ctx.fillStyle = innerGradient;
           ctx.fill();
 
@@ -315,8 +345,16 @@ export default function AIFace({ isListening, isProcessing, isIdle }) {
         ctx.quadraticCurveTo(centerX, mouthY - mouthOpen / 2 - 3, centerX + 3, mouthY - mouthOpen / 2);
         ctx.quadraticCurveTo(centerX + 10, mouthY - mouthOpen / 2 - 2, centerX + 22, mouthY - mouthOpen / 2);
         const upperLipGrad = ctx.createLinearGradient(centerX, mouthY - mouthOpen / 2 - 5, centerX, mouthY - mouthOpen / 2 + 2);
-        upperLipGrad.addColorStop(0, '#D17272');
-        upperLipGrad.addColorStop(1, '#C66565');
+        const adjustBrightness = (color, percent) => {
+          const num = parseInt(color.replace("#",""), 16);
+          const amt = Math.round(2.55 * percent);
+          const R = (num >> 16) + amt;
+          const G = (num >> 8 & 0x00FF) + amt;
+          const B = (num & 0x0000FF) + amt;
+          return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 + (G<255?G<1?0:G:255)*0x100 + (B<255?B<1?0:B:255)).toString(16).slice(1);
+        };
+        upperLipGrad.addColorStop(0, adjustBrightness(lipColor, -5));
+        upperLipGrad.addColorStop(1, adjustBrightness(lipColor, -10));
         ctx.fillStyle = upperLipGrad;
         ctx.fill();
         
@@ -324,9 +362,9 @@ export default function AIFace({ isListening, isProcessing, isIdle }) {
         ctx.beginPath();
         ctx.arc(centerX, mouthY + mouthOpen / 2 + 2, 24, 0, Math.PI);
         const lowerLipGrad = ctx.createLinearGradient(centerX, mouthY + mouthOpen / 2, centerX, mouthY + mouthOpen / 2 + 8);
-        lowerLipGrad.addColorStop(0, '#E88B8B');
-        lowerLipGrad.addColorStop(0.5, '#DC7B7B');
-        lowerLipGrad.addColorStop(1, '#C96969');
+        lowerLipGrad.addColorStop(0, adjustBrightness(lipColor, 10));
+        lowerLipGrad.addColorStop(0.5, lipColor);
+        lowerLipGrad.addColorStop(1, adjustBrightness(lipColor, -5));
         ctx.fillStyle = lowerLipGrad;
         ctx.fill();
         
