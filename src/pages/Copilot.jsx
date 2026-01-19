@@ -25,6 +25,18 @@ export default function Copilot() {
   const [showTemplates, setShowTemplates] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [showAISettings, setShowAISettings] = useState(false);
+  const [aiCustomization, setAiCustomization] = useState(() => {
+    const saved = localStorage.getItem('aiCustomization');
+    return saved ? JSON.parse(saved) : {
+      skinTone: '#FFE4D6',
+      hairColor: '#4B5768',
+      eyeColor: '#3B82F6',
+      lipColor: '#DC7B7B',
+      voice: 'default'
+    };
+  });
+  const [availableVoices, setAvailableVoices] = useState([]);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -60,7 +72,21 @@ export default function Copilot() {
         setIsListening(false);
       };
     }
+
+    // Load available voices
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      setAvailableVoices(voices);
+    };
+    loadVoices();
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('aiCustomization', JSON.stringify(aiCustomization));
+  }, [aiCustomization]);
 
   const handleFileSelect = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -572,17 +598,28 @@ Return the complete revised document with all requested changes applied.`,
                   Create and format professional documentation
                 </p>
               </div>
-              {messages.length > 0 && (
+              <div className="flex gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={clearChat}
-                  className="text-slate-600"
+                  onClick={() => setShowAISettings(true)}
+                  className="gap-2"
                 >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Clear
+                  <Settings className="w-4 h-4" />
+                  Customize AI
                 </Button>
-              )}
+                {messages.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={clearChat}
+                    className="text-slate-600"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Clear
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
 
