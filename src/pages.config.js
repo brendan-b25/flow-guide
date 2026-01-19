@@ -1,4 +1,5 @@
 import CheatSheetGenerator from './pages/CheatSheetGenerator';
+import Copilot from './pages/Copilot';
 import DocumentGenerator from './pages/DocumentGenerator';
 import DocumentTemplates from './pages/DocumentTemplates';
 import Home from './pages/Home';
@@ -7,12 +8,12 @@ import ManualView from './pages/ManualView';
 import Manuals from './pages/Manuals';
 import SavedDocuments from './pages/SavedDocuments';
 import Templates from './pages/Templates';
-import Copilot from './pages/Copilot';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
     "CheatSheetGenerator": CheatSheetGenerator,
+    "Copilot": Copilot,
     "DocumentGenerator": DocumentGenerator,
     "DocumentTemplates": DocumentTemplates,
     "Home": Home,
@@ -21,7 +22,6 @@ export const PAGES = {
     "Manuals": Manuals,
     "SavedDocuments": SavedDocuments,
     "Templates": Templates,
-    "Copilot": Copilot,
 }
 
 export const pagesConfig = {

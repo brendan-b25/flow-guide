@@ -37,9 +37,11 @@ export default function Copilot() {
     };
   });
   const [availableVoices, setAvailableVoices] = useState([]);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const recognitionRef = useRef(null);
+  const speechSynthesisRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -82,11 +84,65 @@ export default function Copilot() {
     if (window.speechSynthesis.onvoiceschanged !== undefined) {
       window.speechSynthesis.onvoiceschanged = loadVoices;
     }
+
+    // Initialize speech synthesis
+    speechSynthesisRef.current = window.speechSynthesis;
   }, []);
 
   useEffect(() => {
     localStorage.setItem('aiCustomization', JSON.stringify(aiCustomization));
   }, [aiCustomization]);
+
+  const speakText = (text) => {
+    if (!speechSynthesisRef.current) return;
+
+    // Cancel any ongoing speech
+    speechSynthesisRef.current.cancel();
+
+    // Clean text for speech (remove markdown)
+    const cleanText = text
+      .replace(/#{1,6}\s/g, '')
+      .replace(/\*\*/g, '')
+      .replace(/\*/g, '')
+      .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
+      .replace(/```[^`]*```/g, '')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/\n+/g, '. ');
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    
+    // Set voice if custom voice selected
+    if (aiCustomization.voice !== 'default') {
+      const selectedVoice = availableVoices.find(v => v.name === aiCustomization.voice);
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
+      }
+    } else {
+      // Use Australian English voice by default
+      const auVoice = availableVoices.find(v => v.lang === 'en-AU') || 
+                      availableVoices.find(v => v.lang.startsWith('en'));
+      if (auVoice) {
+        utterance.voice = auVoice;
+      }
+    }
+
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
+    speechSynthesisRef.current.speak(utterance);
+  };
+
+  const stopSpeaking = () => {
+    if (speechSynthesisRef.current) {
+      speechSynthesisRef.current.cancel();
+      setIsSpeaking(false);
+    }
+  };
 
   const handleFileSelect = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -237,6 +293,9 @@ Use Australian English throughout. Be professional, thorough, and detailed.`,
         isStructured: isContentRequest
       }]);
       
+      // Speak response
+      speakText(result);
+      
       // Update canvas if it's content creation OR if canvas exists and user is modifying it
       if (isContentRequest || (canvasContent && /add|improve|expand|update|revise|change|modify/i.test(userMessage))) {
         setCanvasContent(result);
@@ -312,6 +371,7 @@ Use Australian English throughout. Be professional, thorough, and detailed.`,
   };
 
   const clearChat = () => {
+    stopSpeaking();
     setMessages([]);
     setCanvasContent(null);
     setAttachedFiles([]);
@@ -572,6 +632,7 @@ Return the complete revised document with all requested changes applied.`,
         { role: 'user', content: canvasEditText },
         { role: 'assistant', content: result, isStructured: true }
       ]);
+      speakText(result);
       setIsEditingCanvas(false);
       setCanvasEditText('');
     } catch (error) {
@@ -631,8 +692,8 @@ Return the complete revised document with all requested changes applied.`,
                 <div className="flex flex-col items-center justify-center h-[300px] text-center">
                   <AIFace 
                     isListening={isListening}
-                    isProcessing={isProcessing}
-                    isIdle={!isListening && !isProcessing}
+                    isProcessing={isProcessing || isSpeaking}
+                    isIdle={!isListening && !isProcessing && !isSpeaking}
                     customization={aiCustomization}
                   />
                   <h3 className="text-lg font-semibold text-slate-900 mb-1 mt-4">
@@ -711,8 +772,8 @@ Return the complete revised document with all requested changes applied.`,
                             >
                               {msg.content}
                             </ReactMarkdown>
-                            {msg.isStructured && (
-                              <div className="mt-3 pt-3 border-t flex gap-2">
+                            <div className="mt-3 pt-3 border-t flex gap-2">
+                              {msg.isStructured && (
                                 <Button
                                   size="sm"
                                   variant="outline"
@@ -722,8 +783,17 @@ Return the complete revised document with all requested changes applied.`,
                                   <Copy className="w-3 h-3 mr-1" />
                                   Copy
                                 </Button>
-                              </div>
-                            )}
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => isSpeaking ? stopSpeaking() : speakText(msg.content)}
+                                className="text-xs h-7"
+                              >
+                                {isSpeaking ? <MicOff className="w-3 h-3 mr-1" /> : <Mic className="w-3 h-3 mr-1" />}
+                                {isSpeaking ? 'Stop' : 'Speak'}
+                              </Button>
+                            </div>
                           </div>
                         )}
                       </div>
