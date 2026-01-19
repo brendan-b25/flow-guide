@@ -79,16 +79,26 @@ export default function Copilot() {
     setIsProcessing(true);
 
     try {
-      const isContentRequest = /create|write|generate|draft|make/i.test(userMessage);
+      const isContentRequest = /create|write|generate|draft|make|add|improve|expand|update|revise/i.test(userMessage);
+      
+      // Build conversation history for context
+      const conversationHistory = messages
+        .slice(-6) // Last 6 messages for context
+        .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
+        .join('\n\n');
       
       const result = await base44.integrations.Core.InvokeLLM({
         prompt: `You are FlowGuide Copilot, an expert AI assistant specialized in creating comprehensive, professional documentation, procedures, cheat sheets, and guides.
 
-${currentUrls.length > 0 ? 'IMPORTANT: The user has attached files/images. Carefully analyze them and incorporate ALL relevant information in your response.' : ''}
+${conversationHistory ? `CONVERSATION HISTORY (for context):
+${conversationHistory}
 
-User request: ${userMessage}
+` : ''}${currentUrls.length > 0 ? 'IMPORTANT: The user has attached files/images. Carefully analyze them and incorporate ALL relevant information in your response.\n\n' : ''}CURRENT USER REQUEST: ${userMessage}
 
-Context: You're helping users in a professional documentation platform that includes:
+${canvasContent ? `EXISTING CANVAS CONTENT (user may want to modify/extend this):
+${canvasContent}
+
+` : ''}Context: You're helping users in a professional documentation platform that includes:
 - Procedures (detailed step-by-step manuals with comprehensive sections)
 - Cheat Sheets (thorough quick reference guides)
 - Document Templates (professional forms, reports, etc.)
@@ -133,9 +143,17 @@ CRITICAL INSTRUCTIONS FOR CONTENT CREATION:
    - Add professional insights and recommendations
    - Make it immediately usable without further editing
 
-REMEMBER: The user wants EXTENSIVE, IN-DEPTH content. Do not provide minimal or surface-level information. Generate a complete, thorough, professional document.
+6. ITERATIVE IMPROVEMENTS:
+   - If there's existing canvas content and the user asks to modify/add/improve it, build upon what's already there
+   - Maintain the existing structure while incorporating requested changes
+   - If asked to "add" something, integrate it naturally into the existing content
+   - If asked to "change" or "improve", revise the relevant sections while keeping the rest intact
+
+REMEMBER: The user wants EXTENSIVE, IN-DEPTH content. Do not provide minimal or surface-level information. Generate a complete, thorough, professional document that can be immediately used and printed.
 ` : `
 Provide helpful, detailed, and actionable advice. If the user asks how to do something in the app, explain the steps clearly with examples. If they ask for documentation help, provide comprehensive professional guidance with specific recommendations.
+
+If continuing a conversation, reference previous context and build upon it.
 `}
 
 Use Australian English throughout. Be professional, thorough, and detailed.`,
@@ -149,7 +167,8 @@ Use Australian English throughout. Be professional, thorough, and detailed.`,
         isStructured: isContentRequest
       }]);
       
-      if (isContentRequest) {
+      // Update canvas if it's content creation OR if canvas exists and user is modifying it
+      if (isContentRequest || (canvasContent && /add|improve|expand|update|revise|change|modify/i.test(userMessage))) {
         setCanvasContent(result);
       }
     } catch (error) {
@@ -192,87 +211,204 @@ Use Australian English throughout. Be professional, thorough, and detailed.`,
     const pdf = new jsPDF('p', 'mm', 'a4');
     const margin = 20;
     const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
     const maxWidth = pageWidth - (margin * 2);
     let y = margin;
 
-    pdf.setFontSize(12);
-    pdf.setFont('helvetica', 'normal');
+    // Header
+    pdf.setFillColor(37, 99, 235);
+    pdf.rect(0, 0, pageWidth, 15, 'F');
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('FlowGuide Documentation', margin, 10);
+    
+    y = 25;
     pdf.setTextColor(15, 23, 42);
 
     const lines = canvasContent.split('\n');
     lines.forEach(line => {
-      if (y > 270) {
+      if (y > pageHeight - 30) {
         pdf.addPage();
-        y = margin;
+        // Header on new pages
+        pdf.setFillColor(37, 99, 235);
+        pdf.rect(0, 0, pageWidth, 10, 'F');
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFontSize(8);
+        pdf.text('FlowGuide Documentation', margin, 7);
+        y = 20;
+        pdf.setTextColor(15, 23, 42);
       }
 
-      if (line.startsWith('##')) {
+      if (line.startsWith('###')) {
+        pdf.setFontSize(13);
+        pdf.setFont('helvetica', 'bold');
+        const text = line.replace(/^###\s*/, '');
+        pdf.text(text, margin, y);
+        y += 8;
+        pdf.setFontSize(11);
+        pdf.setFont('helvetica', 'normal');
+      } else if (line.startsWith('##')) {
         pdf.setFontSize(16);
         pdf.setFont('helvetica', 'bold');
-        pdf.text(line.replace(/^##\s*/, ''), margin, y);
+        pdf.setTextColor(37, 99, 235);
+        const text = line.replace(/^##\s*/, '');
+        pdf.text(text, margin, y);
+        pdf.setTextColor(15, 23, 42);
         y += 10;
-        pdf.setFontSize(12);
+        pdf.setFontSize(11);
         pdf.setFont('helvetica', 'normal');
-      } else if (line.startsWith('**') && line.endsWith('**')) {
+      } else if (line.includes('**')) {
         pdf.setFont('helvetica', 'bold');
-        pdf.text(line.replace(/\*\*/g, ''), margin, y);
-        pdf.setFont('helvetica', 'normal');
-        y += 6;
-      } else if (line.trim()) {
-        const splitLines = pdf.splitTextToSize(line, maxWidth);
+        const text = line.replace(/\*\*/g, '');
+        const splitLines = pdf.splitTextToSize(text, maxWidth);
         splitLines.forEach(l => {
           pdf.text(l, margin, y);
           y += 6;
         });
+        pdf.setFont('helvetica', 'normal');
+      } else if (line.trim().match(/^[-•]\s/)) {
+        const text = line.trim().replace(/^[-•]\s/, '');
+        pdf.circle(margin + 2, y - 1.5, 0.8, 'F');
+        const splitLines = pdf.splitTextToSize(text, maxWidth - 6);
+        splitLines.forEach(l => {
+          pdf.text(l, margin + 5, y);
+          y += 5.5;
+        });
+      } else if (line.trim().match(/^\d+\.\s/)) {
+        const splitLines = pdf.splitTextToSize(line.trim(), maxWidth - 6);
+        splitLines.forEach(l => {
+          pdf.text(l, margin + 2, y);
+          y += 5.5;
+        });
+      } else if (line.trim()) {
+        const splitLines = pdf.splitTextToSize(line, maxWidth);
+        splitLines.forEach(l => {
+          pdf.text(l, margin, y);
+          y += 5.5;
+        });
       } else {
-        y += 4;
+        y += 3;
       }
     });
 
-    pdf.save('copilot-content.pdf');
+    // Footer on last page
+    pdf.setFontSize(8);
+    pdf.setTextColor(100, 116, 139);
+    pdf.text(`Generated ${new Date().toLocaleDateString('en-AU')} via FlowGuide Copilot`, margin, pageHeight - 10);
+
+    pdf.save('flowguide-document.pdf');
   };
 
   const exportCanvasToWord = async () => {
     if (!canvasContent) return;
 
+    const { AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle } = await import('docx');
     const sections = [];
     const lines = canvasContent.split('\n');
+    
+    let currentList = [];
+    let listType = null;
+
+    const flushList = () => {
+      if (currentList.length > 0) {
+        currentList.forEach(item => sections.push(item));
+        currentList = [];
+        listType = null;
+      }
+    };
 
     lines.forEach(line => {
-      if (line.startsWith('##')) {
+      if (line.startsWith('###')) {
+        flushList();
+        sections.push(
+          new Paragraph({
+            text: line.replace(/^###\s*/, ''),
+            heading: HeadingLevel.HEADING_3,
+            spacing: { before: 300, after: 150 }
+          })
+        );
+      } else if (line.startsWith('##')) {
+        flushList();
         sections.push(
           new Paragraph({
             text: line.replace(/^##\s*/, ''),
             heading: HeadingLevel.HEADING_2,
-            spacing: { before: 400, after: 200 }
+            spacing: { before: 400, after: 200 },
+            run: { color: "2563EB" }
           })
         );
-      } else if (line.startsWith('**') && line.endsWith('**')) {
+      } else if (line.includes('**')) {
+        flushList();
+        const text = line.replace(/\*\*/g, '');
         sections.push(
           new Paragraph({
-            children: [new TextRun({ text: line.replace(/\*\*/g, ''), bold: true })],
+            children: [new TextRun({ text, bold: true })],
             spacing: { after: 120 }
           })
         );
+      } else if (line.trim().match(/^[-•]\s/)) {
+        const text = line.trim().replace(/^[-•]\s/, '');
+        currentList.push(
+          new Paragraph({
+            text,
+            bullet: { level: 0 },
+            spacing: { after: 80 }
+          })
+        );
+        listType = 'bullet';
+      } else if (line.trim().match(/^\d+\.\s/)) {
+        const text = line.trim().replace(/^\d+\.\s/, '');
+        currentList.push(
+          new Paragraph({
+            text,
+            numbering: { reference: "default-numbering", level: 0 },
+            spacing: { after: 80 }
+          })
+        );
+        listType = 'number';
       } else if (line.trim()) {
+        flushList();
         sections.push(
           new Paragraph({
             text: line,
             spacing: { after: 120 }
           })
         );
+      } else {
+        flushList();
       }
     });
 
+    flushList();
+
     const doc = new Document({
-      sections: [{ children: sections }]
+      sections: [{
+        properties: {
+          page: {
+            margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 }
+          }
+        },
+        children: sections
+      }],
+      numbering: {
+        config: [{
+          reference: "default-numbering",
+          levels: [{
+            level: 0,
+            format: "decimal",
+            text: "%1.",
+            alignment: AlignmentType.LEFT
+          }]
+        }]
+      }
     });
 
     const blob = await Packer.toBlob(doc);
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'copilot-content.docx';
+    a.download = 'flowguide-document.docx';
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
@@ -284,26 +420,38 @@ Use Australian English throughout. Be professional, thorough, and detailed.`,
 
     setIsProcessing(true);
     try {
-      const result = await base44.integrations.Core.InvokeLLM({
-        prompt: `Edit this content based on the user's request: "${canvasEditText}"
+      const conversationHistory = messages
+        .slice(-4)
+        .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
+        .join('\n\n');
 
-Current content:
+      const result = await base44.integrations.Core.InvokeLLM({
+        prompt: `You are editing existing document content. Follow the user's instructions precisely.
+
+${conversationHistory ? `Recent conversation context:
+${conversationHistory}
+
+` : ''}Current canvas content:
 ${canvasContent}
 
-IMPORTANT: Generate improved content maintaining professional formatting:
-- Use ## for main headings
-- Use **bold** for emphasis
-- Use bullet points with - or numbered lists
-- Include tables in markdown format when appropriate
-- Keep it well-structured and scannable
+User's edit request: ${canvasEditText}
 
-Return only the revised content, properly formatted. Use Australian English.`,
+INSTRUCTIONS:
+- Follow the user's request EXACTLY
+- If they ask to add something, integrate it naturally into the existing content
+- If they ask to change/improve something, revise those sections while keeping the rest
+- If they ask to expand, add comprehensive detail to the relevant areas
+- Maintain professional formatting with ##, ###, **bold**, bullet points, numbered lists, and tables
+- Keep the document well-structured, thorough, and ready for printing/downloading
+- Use Australian English
+
+Return the complete revised document with all requested changes applied.`,
         add_context_from_internet: false
       });
 
       setCanvasContent(result);
       setMessages(prev => [...prev, 
-        { role: 'user', content: `Edit: ${canvasEditText}` },
+        { role: 'user', content: canvasEditText },
         { role: 'assistant', content: result, isStructured: true }
       ]);
       setIsEditingCanvas(false);
