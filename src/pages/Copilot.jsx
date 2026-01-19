@@ -3,10 +3,11 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
-import { Sparkles, Send, Loader2, FileText, RefreshCw, Paperclip, X, Download, Copy, Edit3 } from 'lucide-react';
+import { Sparkles, Send, Loader2, FileText, RefreshCw, Paperclip, X, Download, Copy, Edit3, Mic, MicOff, Image as ImageIcon, Layout, Palette } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import jsPDF from 'jspdf';
 import { Document, Packer, Paragraph, HeadingLevel, TextRun } from 'docx';
 
@@ -19,8 +20,13 @@ export default function Copilot() {
   const [canvasContent, setCanvasContent] = useState(null);
   const [isEditingCanvas, setIsEditingCanvas] = useState(false);
   const [canvasEditText, setCanvasEditText] = useState('');
+  const [isListening, setIsListening] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const recognitionRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -29,6 +35,31 @@ export default function Copilot() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    // Initialize Web Speech API
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'en-AU';
+
+      recognitionRef.current.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        setInput(prev => prev + (prev ? ' ' : '') + transcript);
+      };
+
+      recognitionRef.current.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+    }
+  }, []);
 
   const handleFileSelect = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -87,8 +118,18 @@ export default function Copilot() {
         .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
         .join('\n\n');
       
+      // Check if user wants visual content
+      const needsVisuals = /visual|diagram|illustration|infographic|picture|image/i.test(userMessage);
+      let generatedImageUrl = null;
+
+      if (needsVisuals && isContentRequest) {
+        generatedImageUrl = await generateVisualContent(userMessage);
+      }
+
       const result = await base44.integrations.Core.InvokeLLM({
         prompt: `You are FlowGuide Copilot, an expert AI assistant specialized in creating comprehensive, professional documentation, procedures, cheat sheets, and guides.
+
+${generatedImageUrl ? `A visual illustration has been generated and is available at: ${generatedImageUrl}\nInclude this in your response where appropriate using markdown image syntax: ![Visual Guide](${generatedImageUrl})\n\n` : ''}
 
 ${conversationHistory ? `CONVERSATION HISTORY (for context):
 ${conversationHistory}
@@ -127,6 +168,8 @@ CRITICAL INSTRUCTIONS FOR CONTENT CREATION:
      * Comparison data
      * Technical specifications
    - Use code blocks with \`\`\` for examples, formulas, or technical content
+   - Use images with ![alt text](url) for visual content
+   - Add visual break sections with ---
 
 4. COMPREHENSIVE STRUCTURE:
    - Introduction/Overview section
@@ -191,6 +234,54 @@ Use Australian English throughout. Be professional, thorough, and detailed.`,
 
   const handleQuickPrompt = (prompt) => {
     setInput(prompt);
+  };
+
+  const toggleVoiceInput = () => {
+    if (!recognitionRef.current) {
+      alert('Voice input not supported in this browser. Try Chrome or Edge.');
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      recognitionRef.current.start();
+      setIsListening(true);
+    }
+  };
+
+  const templates = [
+    { id: 'safety', name: 'Safety Procedure', icon: '⚠️', prompt: 'Create a comprehensive workplace safety procedure including hazard identification, PPE requirements, emergency procedures, and safety checklists' },
+    { id: 'training', name: 'Training Manual', icon: '📚', prompt: 'Create a detailed training manual with learning objectives, step-by-step instructions, practice exercises, and assessment criteria' },
+    { id: 'sop', name: 'Standard Operating Procedure', icon: '📋', prompt: 'Create a standard operating procedure with purpose, scope, responsibilities, detailed procedures, quality controls, and documentation requirements' },
+    { id: 'checklist', name: 'Inspection Checklist', icon: '✅', prompt: 'Create a comprehensive inspection checklist with categories, specific items to check, pass/fail criteria, and corrective action notes' },
+    { id: 'maintenance', name: 'Maintenance Guide', icon: '🔧', prompt: 'Create a maintenance guide with equipment specifications, routine maintenance schedule, troubleshooting guide, and spare parts list' },
+    { id: 'emergency', name: 'Emergency Response', icon: '🚨', prompt: 'Create an emergency response plan with emergency contacts, evacuation procedures, incident reporting, and post-emergency protocols' },
+    { id: 'visual', name: 'Visual Guide', icon: '🎨', prompt: 'Create a visual step-by-step guide with clear instructions suitable for infographic-style presentation with diagrams and illustrations' },
+    { id: 'report', name: 'Report Template', icon: '📊', prompt: 'Create a professional report template with executive summary, methodology, findings, data analysis, conclusions, and recommendations' }
+  ];
+
+  const applyTemplate = (template) => {
+    setInput(template.prompt);
+    setSelectedTemplate(template.id);
+    setShowTemplates(false);
+  };
+
+  const generateVisualContent = async (prompt) => {
+    setIsGeneratingImage(true);
+    try {
+      const { url } = await base44.integrations.Core.GenerateImage({
+        prompt: `Professional documentation illustration: ${prompt}. Clean, modern, technical diagram style with clear labels and professional color scheme using blues and greys.`
+      });
+      
+      return url;
+    } catch (error) {
+      console.error('Image generation error:', error);
+      return null;
+    } finally {
+      setIsGeneratingImage(false);
+    }
   };
 
   const clearChat = () => {
@@ -504,11 +595,18 @@ Return the complete revised document with all requested changes applied.`,
                     <Sparkles className="w-8 h-8 text-blue-600" />
                   </div>
                   <h3 className="text-xl font-semibold text-slate-900 mb-2">
-                    AI Documentation Assistant
+                    AI Documentation Studio
                   </h3>
-                  <p className="text-slate-600 max-w-md mb-6 text-sm">
-                    Generate professional documentation, upload files for analysis, and create formatted content
+                  <p className="text-slate-600 max-w-md mb-4 text-sm">
+                    Voice commands • Professional templates • Visual content • Smart formatting
                   </p>
+                  <Button
+                    onClick={() => setShowTemplates(true)}
+                    className="mb-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+                  >
+                    <Layout className="w-4 h-4 mr-2" />
+                    Choose Template
+                  </Button>
                   <div className="grid grid-cols-2 gap-2 w-full max-w-xl">
                     {quickPrompts.map((prompt, idx) => (
                       <button
@@ -564,6 +662,10 @@ Return the complete revised document with all requested changes applied.`,
                                 thead: ({ children }) => <thead className="bg-slate-100">{children}</thead>,
                                 th: ({ children }) => <th className="border border-slate-300 px-3 py-2 text-left text-xs font-semibold">{children}</th>,
                                 td: ({ children }) => <td className="border border-slate-300 px-3 py-2 text-xs">{children}</td>,
+                                img: ({ src, alt }) => (
+                                  <img src={src} alt={alt} className="w-full max-w-md mx-auto rounded-lg shadow-md my-4" />
+                                ),
+                                hr: () => <hr className="my-4 border-slate-200" />,
                                 code: ({ inline, children }) => (
                                   inline ? (
                                     <code className="px-1 py-0.5 rounded bg-slate-100 text-slate-700 text-xs font-mono">
@@ -656,16 +758,43 @@ Return the complete revised document with all requested changes applied.`,
                   type="button"
                   variant="outline"
                   size="icon"
+                  onClick={() => setShowTemplates(true)}
+                  disabled={isProcessing}
+                  className="shrink-0 bg-gradient-to-br from-slate-50 to-blue-50 hover:from-slate-100 hover:to-blue-100 border-blue-200"
+                  title="Templates"
+                >
+                  <Layout className="w-5 h-5 text-blue-600" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isProcessing}
                   className="shrink-0"
+                  title="Attach files"
                 >
                   <Paperclip className="w-5 h-5" />
                 </Button>
                 <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={toggleVoiceInput}
+                  disabled={isProcessing}
+                  className={`shrink-0 ${isListening ? 'bg-red-50 border-red-300' : ''}`}
+                  title="Voice input"
+                >
+                  {isListening ? (
+                    <MicOff className="w-5 h-5 text-red-600 animate-pulse" />
+                  ) : (
+                    <Mic className="w-5 h-5" />
+                  )}
+                </Button>
+                <Button
                   type="submit"
                   disabled={(!input.trim() && attachedFiles.length === 0) || isProcessing}
-                  className="bg-blue-600 hover:bg-blue-700 shrink-0"
+                  className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shrink-0"
                   size="icon"
                 >
                   {isProcessing ? (
@@ -680,15 +809,16 @@ Return the complete revised document with all requested changes applied.`,
         </Card>
 
         {/* Tips */}
-        <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
-          <h4 className="font-semibold text-slate-900 mb-1 text-xs">
-            💡 Capabilities:
+        <div className="bg-gradient-to-br from-blue-50 to-slate-50 rounded-lg p-3 border border-blue-100">
+          <h4 className="font-semibold text-slate-900 mb-1 text-xs flex items-center gap-2">
+            <Sparkles className="w-3 h-3 text-blue-600" />
+            Studio Capabilities
           </h4>
           <ul className="text-xs text-slate-600 space-y-0.5">
-            <li>• Generate formatted documents</li>
-            <li>• Analyze uploaded files and images</li>
-            <li>• Create procedures and checklists</li>
-            <li>• Professional writing assistance</li>
+            <li>🎤 Voice commands for hands-free creation</li>
+            <li>📋 Professional templates for instant start</li>
+            <li>🎨 Visual content generation with AI</li>
+            <li>📄 Export to print-ready PDF & Word</li>
           </ul>
         </div>
         </div>
@@ -750,9 +880,13 @@ Return the complete revised document with all requested changes applied.`,
                       li: ({ children }) => <li className="text-slate-700">{children}</li>,
                       strong: ({ children }) => <strong className="font-semibold text-slate-900">{children}</strong>,
                       table: ({ children }) => <table className="w-full border-collapse border border-slate-300 my-4">{children}</table>,
-                      thead: ({ children }) => <thead className="bg-slate-100">{children}</thead>,
+                      thead: ({ children }) => <thead className="bg-gradient-to-r from-blue-50 to-slate-50">{children}</thead>,
                       th: ({ children }) => <th className="border border-slate-300 px-3 py-2 text-left text-sm font-semibold">{children}</th>,
                       td: ({ children }) => <td className="border border-slate-300 px-3 py-2 text-sm">{children}</td>,
+                      img: ({ src, alt }) => (
+                        <img src={src} alt={alt} className="w-full max-w-lg mx-auto rounded-lg shadow-lg my-4 border border-slate-200" />
+                      ),
+                      hr: () => <hr className="my-4 border-slate-200" />,
                       code: ({ inline, children }) => (
                         inline ? (
                           <code className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-sm font-mono">
@@ -819,6 +953,43 @@ Return the complete revised document with all requested changes applied.`,
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Templates Dialog */}
+        <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Layout className="w-5 h-5 text-blue-600" />
+                Professional Templates
+              </DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-3 pt-4 max-h-[500px] overflow-y-auto">
+              {templates.map((template) => (
+                <button
+                  key={template.id}
+                  onClick={() => applyTemplate(template)}
+                  className="text-left p-4 bg-gradient-to-br from-slate-50 to-blue-50 hover:from-blue-50 hover:to-blue-100 rounded-lg border-2 border-slate-200 hover:border-blue-300 transition-all"
+                >
+                  <div className="text-2xl mb-2">{template.icon}</div>
+                  <h3 className="font-semibold text-slate-900 text-sm mb-1">
+                    {template.name}
+                  </h3>
+                  <p className="text-xs text-slate-600 line-clamp-2">
+                    {template.prompt}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Visual Generation Indicator */}
+        {isGeneratingImage && (
+          <div className="fixed bottom-24 right-6 bg-blue-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span className="text-sm font-medium">Generating visual content...</span>
+          </div>
+        )}
       </div>
     </div>
   );
