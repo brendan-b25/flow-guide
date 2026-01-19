@@ -82,18 +82,36 @@ Make it professional, complete, and ready to use. Use Australian English. Includ
     setExportFormat('docx');
 
     try {
+      const { ShadingType, BorderStyle, convertInchesToTwip } = await import('docx');
+      
       const children = [
         new Paragraph({
           text: generatedContent.title,
           heading: HeadingLevel.TITLE,
-          spacing: { after: 400 }
+          spacing: { after: 400, before: 200 },
+          shading: {
+            type: ShadingType.CLEAR,
+            fill: "2563EB",
+          },
+          run: {
+            color: "FFFFFF",
+            bold: true,
+            size: 36
+          },
+          alignment: AlignmentType.CENTER
         })
       ];
 
       if (generatedContent.description) {
         children.push(new Paragraph({
           text: generatedContent.description,
-          spacing: { after: 600 }
+          spacing: { after: 600 },
+          run: {
+            size: 24,
+            color: "475569",
+            italics: true
+          },
+          alignment: AlignmentType.CENTER
         }));
       }
 
@@ -101,36 +119,69 @@ Make it professional, complete, and ready to use. Use Australian English. Includ
         children.push(new Paragraph({
           text: section.heading,
           heading: HeadingLevel.HEADING_1,
-          spacing: { before: 400, after: 200 }
+          spacing: { before: 400, after: 200 },
+          shading: {
+            type: ShadingType.CLEAR,
+            fill: "10B981",
+          },
+          run: {
+            color: "FFFFFF",
+            bold: true,
+            size: 30
+          }
         }));
 
         if (section.type === 'table' && section.tableData) {
-          const tableRows = section.tableData.map(row => 
+          const tableRows = section.tableData.map((row, rowIdx) => 
             new TableRow({
               children: row.map(cell => 
                 new TableCell({
-                  children: [new Paragraph(cell)],
-                  width: { size: 100 / row.length, type: WidthType.PERCENTAGE }
+                  children: [new Paragraph({ text: cell, bold: rowIdx === 0 })],
+                  width: { size: 100 / row.length, type: WidthType.PERCENTAGE },
+                  shading: { fill: rowIdx === 0 ? "F1F5F9" : (rowIdx % 2 === 0 ? "FFFFFF" : "F9FAFB") },
+                  borders: {
+                    top: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
+                    bottom: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
+                    left: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
+                    right: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
+                  }
                 })
-              )
+              ),
+              tableHeader: rowIdx === 0
             })
           );
 
           children.push(new DocxTable({
             rows: tableRows,
-            width: { size: 100, type: WidthType.PERCENTAGE }
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            margins: {
+              top: convertInchesToTwip(0.1),
+              bottom: convertInchesToTwip(0.1),
+              left: convertInchesToTwip(0.1),
+              right: convertInchesToTwip(0.1),
+            }
           }));
+          children.push(new Paragraph({ text: "", spacing: { after: 200 } }));
         } else if (section.type === 'list' && section.listItems) {
           section.listItems.forEach(item => {
             children.push(new Paragraph({
-              text: `• ${item}`,
-              spacing: { after: 100 }
+              text: item,
+              bullet: { level: 0 },
+              spacing: { after: 120 },
+              run: {
+                size: 22,
+                color: "1E293B"
+              }
             }));
           });
         } else {
           children.push(new Paragraph({
             text: section.content || '',
-            spacing: { after: 300 }
+            spacing: { after: 300 },
+            run: {
+              size: 22,
+              color: "1E293B"
+            }
           }));
         }
       });
@@ -175,7 +226,7 @@ Make it professional, complete, and ready to use. Use Australian English. Includ
         if (section.type === 'table' && section.tableData) {
           section.tableData.forEach(row => data.push(row));
         } else if (section.type === 'list' && section.listItems) {
-          section.listItems.forEach(item => data.push([item]));
+          section.listItems.forEach(item => data.push(['•', item]));
         } else {
           data.push([section.content || '']);
         }
@@ -184,7 +235,67 @@ Make it professional, complete, and ready to use. Use Australian English. Includ
       });
 
       const ws = XLSX.utils.aoa_to_sheet(data);
-      ws['!cols'] = [{ wch: 80 }];
+      
+      // Styling
+      ws['A1'].s = {
+        font: { bold: true, sz: 18, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "2563EB" } },
+        alignment: { horizontal: "center", vertical: "center" }
+      };
+      
+      if (ws['A2']) {
+        ws['A2'].s = {
+          font: { italic: true, sz: 12, color: { rgb: "475569" } },
+          alignment: { horizontal: "center", wrapText: true }
+        };
+      }
+
+      // Section headings
+      let currentRow = 3;
+      generatedContent.sections.forEach(section => {
+        const cellRef = XLSX.utils.encode_cell({ r: currentRow, c: 0 });
+        if (ws[cellRef]) {
+          ws[cellRef].s = {
+            font: { bold: true, sz: 14, color: { rgb: "FFFFFF" } },
+            fill: { fgColor: { rgb: "10B981" } },
+            alignment: { horizontal: "left", vertical: "center" }
+          };
+        }
+        currentRow++;
+
+        if (section.type === 'table' && section.tableData) {
+          section.tableData.forEach((row, rowIdx) => {
+            for (let col = 0; col < row.length; col++) {
+              const cellRef = XLSX.utils.encode_cell({ r: currentRow, c: col });
+              if (ws[cellRef]) {
+                ws[cellRef].s = {
+                  font: { bold: rowIdx === 0 },
+                  fill: { fgColor: { rgb: rowIdx === 0 ? "F1F5F9" : (rowIdx % 2 === 0 ? "FFFFFF" : "F9FAFB") } },
+                  border: {
+                    top: { style: "thin", color: { rgb: "CBD5E1" } },
+                    bottom: { style: "thin", color: { rgb: "CBD5E1" } },
+                    left: { style: "thin", color: { rgb: "CBD5E1" } },
+                    right: { style: "thin", color: { rgb: "CBD5E1" } }
+                  }
+                };
+              }
+            }
+            currentRow++;
+          });
+        } else if (section.type === 'list' && section.listItems) {
+          section.listItems.forEach(() => {
+            currentRow++;
+          });
+        } else {
+          currentRow++;
+        }
+        currentRow++;
+      });
+
+      ws['!cols'] = [{ wch: 5 }, { wch: 80 }];
+      ws['!rows'] = [];
+      ws['!rows'][0] = { hpt: 30 };
+      ws['!rows'][1] = { hpt: 25 };
 
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Document');
@@ -212,57 +323,131 @@ Make it professional, complete, and ready to use. Use Australian English. Includ
       const maxWidth = pageWidth - (margin * 2);
       let yPosition = margin;
 
-      const addText = (text, fontSize, bold = false) => {
+      const colors = {
+        primary: [37, 99, 235],
+        secondary: [59, 130, 246],
+        text: [15, 23, 42],
+        lightText: [100, 116, 139],
+        accent: [16, 185, 129]
+      };
+
+      const addText = (text, fontSize, bold = false, color = colors.text, indent = 0) => {
         pdf.setFontSize(fontSize);
         pdf.setFont('helvetica', bold ? 'bold' : 'normal');
-        const lines = pdf.splitTextToSize(text, maxWidth);
+        pdf.setTextColor(...color);
+        const lines = pdf.splitTextToSize(text, maxWidth - indent);
         lines.forEach(line => {
-          if (yPosition > pageHeight - 20) {
+          if (yPosition > pageHeight - 25) {
             pdf.addPage();
             yPosition = margin;
+            // Page number
+            pdf.setFontSize(9);
+            pdf.setTextColor(...colors.lightText);
+            pdf.text(`Page ${pdf.internal.getNumberOfPages()}`, pageWidth - margin - 15, pageHeight - 10);
+            pdf.setTextColor(...colors.text);
           }
-          pdf.text(line, margin, yPosition);
-          yPosition += fontSize * 0.4;
+          pdf.text(line, margin + indent, yPosition);
+          yPosition += fontSize * 0.45;
         });
       };
 
+      // Cover with gradient
+      pdf.setFillColor(...colors.primary);
+      pdf.rect(0, 0, pageWidth, 70, 'F');
+      pdf.setFillColor(...colors.secondary);
+      pdf.rect(0, 60, pageWidth, 10, 'F');
+
       // Title
-      addText(generatedContent.title, 20, true);
-      yPosition += 5;
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(28);
+      pdf.setFont('helvetica', 'bold');
+      const titleLines = pdf.splitTextToSize(generatedContent.title, maxWidth);
+      let titleY = 30;
+      titleLines.forEach(line => {
+        pdf.text(line, margin, titleY);
+        titleY += 13;
+      });
 
       // Description
       if (generatedContent.description) {
-        addText(generatedContent.description, 11);
-        yPosition += 8;
+        pdf.setFontSize(13);
+        pdf.setFont('helvetica', 'normal');
+        const descLines = pdf.splitTextToSize(generatedContent.description, maxWidth);
+        descLines.forEach(line => {
+          pdf.text(line, margin, titleY);
+          titleY += 7;
+        });
       }
+
+      yPosition = 85;
 
       // Sections
       generatedContent.sections.forEach(section => {
-        if (yPosition > pageHeight - 40) {
+        if (yPosition > pageHeight - 50) {
           pdf.addPage();
           yPosition = margin;
         }
 
-        addText(section.heading, 14, true);
-        yPosition += 3;
+        // Section header with background
+        pdf.setFillColor(...colors.accent);
+        pdf.roundedRect(margin - 5, yPosition - 4, maxWidth + 10, 12, 2, 2, 'F');
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFontSize(15);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(section.heading, margin, yPosition + 4);
+        yPosition += 18;
+
+        pdf.setTextColor(...colors.text);
 
         if (section.type === 'list' && section.listItems) {
+          pdf.setFontSize(10);
           section.listItems.forEach(item => {
-            addText(`• ${item}`, 10);
-            yPosition += 2;
+            pdf.setFillColor(...colors.accent);
+            pdf.circle(margin + 2, yPosition - 1, 1, 'F');
+            const itemLines = pdf.splitTextToSize(item, maxWidth - 8);
+            itemLines.forEach(line => {
+              pdf.text(line, margin + 6, yPosition);
+              yPosition += 5;
+            });
+            yPosition += 1;
           });
         } else if (section.type === 'table' && section.tableData) {
-          section.tableData.forEach(row => {
-            const rowText = row.join(' | ');
-            addText(rowText, 9);
-            yPosition += 2;
+          const cellHeight = 8;
+          const colWidth = maxWidth / section.tableData[0].length;
+          
+          section.tableData.forEach((row, rowIdx) => {
+            if (rowIdx === 0) {
+              pdf.setFillColor(241, 245, 249);
+              pdf.rect(margin, yPosition, maxWidth, cellHeight, 'F');
+              pdf.setFont('helvetica', 'bold');
+            } else {
+              if (rowIdx % 2 === 0) {
+                pdf.setFillColor(249, 250, 251);
+                pdf.rect(margin, yPosition, maxWidth, cellHeight, 'F');
+              }
+              pdf.setFont('helvetica', 'normal');
+            }
+            
+            pdf.setFontSize(9);
+            row.forEach((cell, colIdx) => {
+              pdf.text(cell, margin + (colIdx * colWidth) + 2, yPosition + 5);
+            });
+            yPosition += cellHeight;
           });
+          yPosition += 3;
         } else {
-          addText(section.content || '', 10);
+          pdf.setFontSize(10);
+          pdf.setFont('helvetica', 'normal');
+          addText(section.content || '', 10, false, colors.text, 0);
         }
         
-        yPosition += 8;
+        yPosition += 10;
       });
+
+      // Footer
+      pdf.setFontSize(8);
+      pdf.setTextColor(...colors.lightText);
+      pdf.text(`Generated on ${new Date().toLocaleDateString('en-AU')}`, margin, pageHeight - 10);
 
       pdf.save(`${generatedContent.title.replace(/[^a-z0-9]/gi, '_')}.pdf`);
     } catch (error) {

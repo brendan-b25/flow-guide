@@ -202,75 +202,187 @@ When a section would benefit from a table (dosage charts, measurements, schedule
     }
   };
 
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
     if (!generatedSheet) return;
 
     const pdf = new jsPDF('p', 'mm', 'a4');
-    const margin = 15;
+    const margin = 20;
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
     const maxWidth = pageWidth - (margin * 2);
     let y = margin;
 
-    const addText = (text, fontSize, bold = false, color = [0, 0, 0]) => {
+    // Enhanced color palette
+    const colors = {
+      primary: [37, 99, 235],
+      text: [15, 23, 42],
+      lightText: [100, 116, 139],
+      dosage: [59, 130, 246],
+      steps: [16, 185, 129],
+      tips: [245, 158, 11],
+      safety: [239, 68, 68],
+      troubleshooting: [139, 92, 246],
+      general: [71, 85, 105]
+    };
+
+    const addText = (text, fontSize, bold = false, color = colors.text, indent = 0) => {
       pdf.setFontSize(fontSize);
       pdf.setFont('helvetica', bold ? 'bold' : 'normal');
       pdf.setTextColor(...color);
-      const lines = pdf.splitTextToSize(text, maxWidth);
+      const lines = pdf.splitTextToSize(text, maxWidth - indent);
       lines.forEach(line => {
-        if (y > pageHeight - 20) {
+        if (y > pageHeight - 25) {
           pdf.addPage();
           y = margin;
+          // Add page number
+          pdf.setFontSize(9);
+          pdf.setTextColor(...colors.lightText);
+          pdf.text(`Page ${pdf.internal.getNumberOfPages()}`, pageWidth - margin - 15, pageHeight - 10);
+          pdf.setTextColor(...colors.text);
         }
-        pdf.text(line, margin, y);
-        y += fontSize * 0.4;
+        pdf.text(line, margin + indent, y);
+        y += fontSize * 0.45;
       });
     };
 
+    const addImage = async (imageUrl, maxHeight = 80) => {
+      try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+          img.src = imageUrl;
+        });
+        
+        const aspectRatio = img.width / img.height;
+        let imgWidth = maxWidth - 20;
+        let imgHeight = imgWidth / aspectRatio;
+        
+        if (imgHeight > maxHeight) {
+          imgHeight = maxHeight;
+          imgWidth = imgHeight * aspectRatio;
+        }
+        
+        if (y + imgHeight > pageHeight - 25) {
+          pdf.addPage();
+          y = margin;
+        }
+        
+        pdf.addImage(img, 'JPEG', margin + 10, y, imgWidth, imgHeight);
+        y += imgHeight + 8;
+      } catch (error) {
+        console.error('Failed to add image:', error);
+      }
+    };
+
+    // Cover with gradient effect (simulated with rectangles)
+    pdf.setFillColor(37, 99, 235);
+    pdf.rect(0, 0, pageWidth, 70, 'F');
+    pdf.setFillColor(59, 130, 246);
+    pdf.rect(0, 60, pageWidth, 10, 'F');
+    
     // Title
-    addText(generatedSheet.title, 18, true, [30, 64, 175]);
-    y += 3;
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(26);
+    pdf.setFont('helvetica', 'bold');
+    const titleLines = pdf.splitTextToSize(generatedSheet.title, maxWidth);
+    let titleY = 30;
+    titleLines.forEach(line => {
+      pdf.text(line, margin, titleY);
+      titleY += 12;
+    });
 
     // Summary
-    addText(generatedSheet.summary, 10, false, [71, 85, 105]);
-    y += 8;
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'normal');
+    const summaryLines = pdf.splitTextToSize(generatedSheet.summary, maxWidth);
+    summaryLines.forEach(line => {
+      pdf.text(line, margin, titleY);
+      titleY += 6;
+    });
+
+    y = 85;
 
     // Sections
-    generatedSheet.sections.forEach((section, idx) => {
-      if (y > pageHeight - 50) {
+    for (const section of generatedSheet.sections) {
+      if (y > pageHeight - 60) {
         pdf.addPage();
         y = margin;
       }
 
-      const sectionColors = {
-        dosage: [59, 130, 246],
-        steps: [16, 185, 129],
-        tips: [245, 158, 11],
-        safety: [239, 68, 68],
-        troubleshooting: [139, 92, 246],
-        general: [71, 85, 105]
-      };
+      const sectionColor = colors[section.type] || colors.general;
 
-      addText(section.heading, 12, true, sectionColors[section.type] || [0, 0, 0]);
-      y += 2;
+      // Section header with background
+      pdf.setFillColor(...sectionColor);
+      pdf.roundedRect(margin - 5, y - 4, maxWidth + 10, 12, 2, 2, 'F');
+      
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(section.heading, margin, y + 4);
+      y += 16;
 
-      if (section.table && section.table.headers && section.table.rows) {
-        addText(section.table.headers.join(' | '), 9, true);
-        y += 1;
-        section.table.rows.forEach(row => {
-          addText(row.join(' | '), 8);
-          y += 1;
-        });
-        y += 2;
+      pdf.setTextColor(...colors.text);
+
+      // Image if present
+      if (section.image_url) {
+        await addImage(section.image_url);
       }
 
+      // Table if present
+      if (section.table && section.table.headers && section.table.rows) {
+        // Table header
+        pdf.setFillColor(241, 245, 249);
+        const cellHeight = 8;
+        const colWidth = maxWidth / section.table.headers.length;
+        
+        pdf.rect(margin, y, maxWidth, cellHeight, 'F');
+        pdf.setFontSize(9);
+        pdf.setFont('helvetica', 'bold');
+        section.table.headers.forEach((header, idx) => {
+          pdf.text(header, margin + (idx * colWidth) + 2, y + 5);
+        });
+        y += cellHeight;
+
+        // Table rows
+        pdf.setFont('helvetica', 'normal');
+        section.table.rows.forEach((row, rowIdx) => {
+          if (rowIdx % 2 === 0) {
+            pdf.setFillColor(249, 250, 251);
+            pdf.rect(margin, y, maxWidth, cellHeight, 'F');
+          }
+          row.forEach((cell, idx) => {
+            pdf.text(cell, margin + (idx * colWidth) + 2, y + 5);
+          });
+          y += cellHeight;
+        });
+        y += 5;
+      }
+
+      // Items
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
       section.items.forEach(item => {
-        addText(`• ${item}`, 9);
+        // Bullet point
+        pdf.setFillColor(...sectionColor);
+        pdf.circle(margin + 2, y - 1, 1, 'F');
+        
+        const itemLines = pdf.splitTextToSize(item, maxWidth - 8);
+        itemLines.forEach((line, idx) => {
+          pdf.text(line, margin + 6, y);
+          y += 5;
+        });
         y += 1;
       });
 
-      y += 5;
-    });
+      y += 8;
+    }
+
+    // Footer on last page
+    pdf.setFontSize(8);
+    pdf.setTextColor(...colors.lightText);
+    pdf.text(`Generated on ${new Date().toLocaleDateString('en-AU')}`, margin, pageHeight - 10);
 
     pdf.save(`${generatedSheet.title.replace(/[^a-z0-9]/gi, '_')}.pdf`);
   };
@@ -360,58 +472,160 @@ Keep it scannable and practical. Use Australian English.`,
     const content = sheet.content;
     const sections = [];
 
+    // Import additional docx components for styling
+    const { Table: DocxTable, TableRow, TableCell, WidthType, BorderStyle, AlignmentType: DocxAlignment, ShadingType, convertInchesToTwip, ImageRun } = await import('docx');
+
+    // Title with custom styling
     sections.push(
       new Paragraph({
         text: content.title,
         heading: HeadingLevel.HEADING_1,
         alignment: AlignmentType.CENTER,
-        spacing: { after: 200 }
+        spacing: { after: 300, before: 200 },
+        shading: {
+          type: ShadingType.CLEAR,
+          fill: "2563EB",
+        },
+        run: {
+          color: "FFFFFF",
+          bold: true,
+          size: 32
+        }
       }),
       new Paragraph({
         text: content.summary,
         italics: true,
         alignment: AlignmentType.CENTER,
-        spacing: { after: 400 }
+        spacing: { after: 600 },
+        run: {
+          size: 24,
+          color: "475569"
+        }
       })
     );
 
-    content.sections.forEach(section => {
+    // Section colors
+    const sectionColors = {
+      dosage: "3B82F6",
+      steps: "10B981",
+      tips: "F59E0B",
+      safety: "EF4444",
+      troubleshooting: "8B5CF6",
+      general: "64748B"
+    };
+
+    for (const section of content.sections) {
+      const sectionColor = sectionColors[section.type] || sectionColors.general;
+      
+      // Section heading with background
       sections.push(
         new Paragraph({
           text: section.heading,
           heading: HeadingLevel.HEADING_2,
-          spacing: { before: 300, after: 200 }
+          spacing: { before: 400, after: 200 },
+          shading: {
+            type: ShadingType.CLEAR,
+            fill: sectionColor,
+          },
+          run: {
+            color: "FFFFFF",
+            bold: true,
+            size: 28
+          }
         })
       );
 
-      if (section.table && section.table.headers && section.table.rows) {
-        sections.push(
-          new Paragraph({
-            text: section.table.headers.join(' | '),
-            bold: true,
-            spacing: { after: 100 }
-          })
-        );
-        section.table.rows.forEach(row => {
+      // Image if present
+      if (section.image_url) {
+        try {
+          const imageData = await fetch(section.image_url).then(r => r.arrayBuffer());
           sections.push(
             new Paragraph({
-              text: row.join(' | '),
-              spacing: { after: 100 }
+              children: [
+                new ImageRun({
+                  data: imageData,
+                  transformation: {
+                    width: 400,
+                    height: 300,
+                  },
+                })
+              ],
+              spacing: { after: 200 }
             })
           );
-        });
+        } catch (error) {
+          console.error('Failed to embed image:', error);
+        }
       }
 
+      // Table if present
+      if (section.table && section.table.headers && section.table.rows) {
+        const tableRows = [
+          new TableRow({
+            children: section.table.headers.map(header =>
+              new TableCell({
+                children: [new Paragraph({ text: header, bold: true })],
+                shading: { fill: "F1F5F9" },
+                borders: {
+                  top: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
+                  bottom: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
+                  left: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
+                  right: { style: BorderStyle.SINGLE, size: 1, color: "CBD5E1" },
+                }
+              })
+            ),
+            tableHeader: true
+          }),
+          ...section.table.rows.map((row, idx) =>
+            new TableRow({
+              children: row.map(cell =>
+                new TableCell({
+                  children: [new Paragraph(cell)],
+                  shading: { fill: idx % 2 === 0 ? "FFFFFF" : "F9FAFB" },
+                  borders: {
+                    top: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+                    bottom: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+                    left: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+                    right: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
+                  }
+                })
+              )
+            })
+          )
+        ];
+
+        sections.push(
+          new DocxTable({
+            rows: tableRows,
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            margins: {
+              top: convertInchesToTwip(0.1),
+              bottom: convertInchesToTwip(0.1),
+              left: convertInchesToTwip(0.1),
+              right: convertInchesToTwip(0.1),
+            }
+          })
+        );
+        sections.push(new Paragraph({ text: "", spacing: { after: 200 } }));
+      }
+
+      // Items with custom bullets
       section.items.forEach(item => {
         sections.push(
           new Paragraph({
             text: item,
             bullet: { level: 0 },
-            spacing: { after: 100 }
+            spacing: { after: 120 },
+            run: {
+              size: 22,
+              color: "1E293B"
+            }
           })
         );
       });
-    });
+
+      sections.push(new Paragraph({ text: "", spacing: { after: 200 } }));
+    }
 
     const doc = new Document({
       sections: [{
@@ -451,81 +665,286 @@ Keep it scannable and practical. Use Australian English.`,
       }
       
       section.items.forEach(item => {
-        data.push(['', item]);
+        data.push(['•', item]);
       });
       data.push([]);
     });
 
     const ws = XLSX.utils.aoa_to_sheet(data);
+    
+    // Styling
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    
+    // Title styling (row 0)
+    ws['A1'].s = {
+      font: { bold: true, sz: 18, color: { rgb: "FFFFFF" } },
+      fill: { fgColor: { rgb: "2563EB" } },
+      alignment: { horizontal: "center", vertical: "center" }
+    };
+    
+    // Summary styling (row 1)
+    if (ws['A2']) {
+      ws['A2'].s = {
+        font: { italic: true, sz: 12, color: { rgb: "475569" } },
+        alignment: { horizontal: "center", wrapText: true }
+      };
+    }
+
+    // Section headings and content
+    const sectionColors = {
+      dosage: "3B82F6",
+      steps: "10B981",
+      tips: "F59E0B",
+      safety: "EF4444",
+      troubleshooting: "8B5CF6",
+      general: "64748B"
+    };
+
+    let currentRow = 3;
+    content.sections.forEach(section => {
+      const sectionColor = sectionColors[section.type] || sectionColors.general;
+      const cellRef = XLSX.utils.encode_cell({ r: currentRow, c: 0 });
+      
+      if (ws[cellRef]) {
+        ws[cellRef].s = {
+          font: { bold: true, sz: 14, color: { rgb: "FFFFFF" } },
+          fill: { fgColor: { rgb: sectionColor } },
+          alignment: { horizontal: "left", vertical: "center" }
+        };
+      }
+      currentRow++;
+
+      // Table styling
+      if (section.table && section.table.headers && section.table.rows) {
+        // Header row
+        for (let col = 0; col < section.table.headers.length; col++) {
+          const headerRef = XLSX.utils.encode_cell({ r: currentRow, c: col });
+          if (ws[headerRef]) {
+            ws[headerRef].s = {
+              font: { bold: true, sz: 11 },
+              fill: { fgColor: { rgb: "F1F5F9" } },
+              border: {
+                top: { style: "thin", color: { rgb: "CBD5E1" } },
+                bottom: { style: "thin", color: { rgb: "CBD5E1" } },
+                left: { style: "thin", color: { rgb: "CBD5E1" } },
+                right: { style: "thin", color: { rgb: "CBD5E1" } }
+              }
+            };
+          }
+        }
+        currentRow++;
+
+        // Data rows
+        section.table.rows.forEach((row, rowIdx) => {
+          for (let col = 0; col < row.length; col++) {
+            const cellRef = XLSX.utils.encode_cell({ r: currentRow, c: col });
+            if (ws[cellRef]) {
+              ws[cellRef].s = {
+                fill: { fgColor: { rgb: rowIdx % 2 === 0 ? "FFFFFF" : "F9FAFB" } },
+                border: {
+                  top: { style: "thin", color: { rgb: "E2E8F0" } },
+                  bottom: { style: "thin", color: { rgb: "E2E8F0" } },
+                  left: { style: "thin", color: { rgb: "E2E8F0" } },
+                  right: { style: "thin", color: { rgb: "E2E8F0" } }
+                }
+              };
+            }
+          }
+          currentRow++;
+        });
+        currentRow++;
+      }
+
+      // Items
+      section.items.forEach(item => {
+        currentRow++;
+      });
+      currentRow++;
+    });
+
+    // Column widths
+    ws['!cols'] = [
+      { wch: 5 },  // Bullet column
+      { wch: 80 }  // Content column
+    ];
+
+    // Row heights
+    ws['!rows'] = [];
+    ws['!rows'][0] = { hpt: 30 };  // Title row
+    ws['!rows'][1] = { hpt: 25 };  // Summary row
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Cheat Sheet');
     XLSX.writeFile(wb, `${content.title.replace(/[^a-z0-9]/gi, '_')}.xlsx`);
   };
 
-  const exportSheetToPDF = (sheet) => {
+  const exportSheetToPDF = async (sheet) => {
     const content = sheet.content;
     const pdf = new jsPDF('p', 'mm', 'a4');
-    const margin = 15;
+    const margin = 20;
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
     const maxWidth = pageWidth - (margin * 2);
     let y = margin;
 
-    const addText = (text, fontSize, bold = false, color = [0, 0, 0]) => {
+    const colors = {
+      primary: [37, 99, 235],
+      text: [15, 23, 42],
+      lightText: [100, 116, 139],
+      dosage: [59, 130, 246],
+      steps: [16, 185, 129],
+      tips: [245, 158, 11],
+      safety: [239, 68, 68],
+      troubleshooting: [139, 92, 246],
+      general: [71, 85, 105]
+    };
+
+    const addText = (text, fontSize, bold = false, color = colors.text, indent = 0) => {
       pdf.setFontSize(fontSize);
       pdf.setFont('helvetica', bold ? 'bold' : 'normal');
       pdf.setTextColor(...color);
-      const lines = pdf.splitTextToSize(text, maxWidth);
+      const lines = pdf.splitTextToSize(text, maxWidth - indent);
       lines.forEach(line => {
-        if (y > pageHeight - 20) {
+        if (y > pageHeight - 25) {
           pdf.addPage();
           y = margin;
+          pdf.setFontSize(9);
+          pdf.setTextColor(...colors.lightText);
+          pdf.text(`Page ${pdf.internal.getNumberOfPages()}`, pageWidth - margin - 15, pageHeight - 10);
+          pdf.setTextColor(...colors.text);
         }
-        pdf.text(line, margin, y);
-        y += fontSize * 0.4;
+        pdf.text(line, margin + indent, y);
+        y += fontSize * 0.45;
       });
     };
 
-    addText(content.title, 18, true, [30, 64, 175]);
-    y += 3;
-    addText(content.summary, 10, false, [71, 85, 105]);
-    y += 8;
+    const addImage = async (imageUrl, maxHeight = 80) => {
+      try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+          img.src = imageUrl;
+        });
+        
+        const aspectRatio = img.width / img.height;
+        let imgWidth = maxWidth - 20;
+        let imgHeight = imgWidth / aspectRatio;
+        
+        if (imgHeight > maxHeight) {
+          imgHeight = maxHeight;
+          imgWidth = imgHeight * aspectRatio;
+        }
+        
+        if (y + imgHeight > pageHeight - 25) {
+          pdf.addPage();
+          y = margin;
+        }
+        
+        pdf.addImage(img, 'JPEG', margin + 10, y, imgWidth, imgHeight);
+        y += imgHeight + 8;
+      } catch (error) {
+        console.error('Failed to add image:', error);
+      }
+    };
 
-    content.sections.forEach(section => {
-      if (y > pageHeight - 50) {
+    // Cover
+    pdf.setFillColor(37, 99, 235);
+    pdf.rect(0, 0, pageWidth, 70, 'F');
+    pdf.setFillColor(59, 130, 246);
+    pdf.rect(0, 60, pageWidth, 10, 'F');
+    
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(26);
+    pdf.setFont('helvetica', 'bold');
+    const titleLines = pdf.splitTextToSize(content.title, maxWidth);
+    let titleY = 30;
+    titleLines.forEach(line => {
+      pdf.text(line, margin, titleY);
+      titleY += 12;
+    });
+
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'normal');
+    const summaryLines = pdf.splitTextToSize(content.summary, maxWidth);
+    summaryLines.forEach(line => {
+      pdf.text(line, margin, titleY);
+      titleY += 6;
+    });
+
+    y = 85;
+
+    for (const section of content.sections) {
+      if (y > pageHeight - 60) {
         pdf.addPage();
         y = margin;
       }
 
-      const sectionColors = {
-        dosage: [59, 130, 246],
-        steps: [16, 185, 129],
-        tips: [245, 158, 11],
-        safety: [239, 68, 68],
-        troubleshooting: [139, 92, 246],
-        general: [71, 85, 105]
-      };
+      const sectionColor = colors[section.type] || colors.general;
 
-      addText(section.heading, 12, true, sectionColors[section.type] || [0, 0, 0]);
-      y += 2;
+      pdf.setFillColor(...sectionColor);
+      pdf.roundedRect(margin - 5, y - 4, maxWidth + 10, 12, 2, 2, 'F');
+      
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(section.heading, margin, y + 4);
+      y += 16;
 
-      if (section.table && section.table.headers && section.table.rows) {
-        addText(section.table.headers.join(' | '), 9, true);
-        y += 1;
-        section.table.rows.forEach(row => {
-          addText(row.join(' | '), 8);
-          y += 1;
-        });
-        y += 2;
+      pdf.setTextColor(...colors.text);
+
+      if (section.image_url) {
+        await addImage(section.image_url);
       }
 
+      if (section.table && section.table.headers && section.table.rows) {
+        pdf.setFillColor(241, 245, 249);
+        const cellHeight = 8;
+        const colWidth = maxWidth / section.table.headers.length;
+        
+        pdf.rect(margin, y, maxWidth, cellHeight, 'F');
+        pdf.setFontSize(9);
+        pdf.setFont('helvetica', 'bold');
+        section.table.headers.forEach((header, idx) => {
+          pdf.text(header, margin + (idx * colWidth) + 2, y + 5);
+        });
+        y += cellHeight;
+
+        pdf.setFont('helvetica', 'normal');
+        section.table.rows.forEach((row, rowIdx) => {
+          if (rowIdx % 2 === 0) {
+            pdf.setFillColor(249, 250, 251);
+            pdf.rect(margin, y, maxWidth, cellHeight, 'F');
+          }
+          row.forEach((cell, idx) => {
+            pdf.text(cell, margin + (idx * colWidth) + 2, y + 5);
+          });
+          y += cellHeight;
+        });
+        y += 5;
+      }
+
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
       section.items.forEach(item => {
-        addText(`• ${item}`, 9);
+        pdf.setFillColor(...sectionColor);
+        pdf.circle(margin + 2, y - 1, 1, 'F');
+        
+        const itemLines = pdf.splitTextToSize(item, maxWidth - 8);
+        itemLines.forEach((line, idx) => {
+          pdf.text(line, margin + 6, y);
+          y += 5;
+        });
         y += 1;
       });
 
-      y += 5;
-    });
+      y += 8;
+    }
+
+    pdf.setFontSize(8);
+    pdf.setTextColor(...colors.lightText);
+    pdf.text(`Generated on ${new Date().toLocaleDateString('en-AU')}`, margin, pageHeight - 10);
 
     pdf.save(`${content.title.replace(/[^a-z0-9]/gi, '_')}.pdf`);
   };
