@@ -16,6 +16,8 @@ import ManualAIChatDialog from '../components/manuals/ManualAIChatDialog';
 import AIStepBuilder from '../components/manuals/AIStepBuilder';
 import BrandingDialog from '../components/manuals/BrandingDialog';
 import StyleToneDialog from '../components/manuals/StyleToneDialog';
+import CheatSheetAttachDialog from '../components/manuals/CheatSheetAttachDialog';
+import CreateCheatSheetDialog from '../components/manuals/CreateCheatSheetDialog';
 
 export default function ManualEditor() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -368,6 +370,10 @@ export default function ManualEditor() {
                       manualId={manualId}
                       onSectionsCreated={handleSectionsGenerated}
                     />
+                    <CheatSheetAttachDialog
+                      manualId={manualId}
+                      onAttached={handleSectionsGenerated}
+                    />
                     <Button 
                       variant="outline" 
                       onClick={addSection}
@@ -423,7 +429,7 @@ export default function ManualEditor() {
             Add Section
           </Button>
           {sections.length > 0 && (
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <AIStepBuilder 
                 manualId={manualId} 
                 onComplete={handleSectionsGenerated}
@@ -435,6 +441,15 @@ export default function ManualEditor() {
               <UploadManualDialog
                 manualId={manualId}
                 onSectionsCreated={handleSectionsGenerated}
+              />
+              <CheatSheetAttachDialog
+                manualId={manualId}
+                onAttached={handleSectionsGenerated}
+              />
+              <CreateCheatSheetDialog
+                manualId={manualId}
+                manualTitle={manual?.title || 'Procedure'}
+                onCreated={() => alert('Cheat sheet created and saved!')}
               />
             </div>
           )}
