@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import jsPDF from 'jspdf';
 import { Document, Packer, Paragraph, HeadingLevel, TextRun } from 'docx';
+import AIFace from '@/components/copilot/AIFace';
 
 export default function Copilot() {
   const [messages, setMessages] = useState([]);
@@ -591,34 +592,25 @@ Return the complete revised document with all requested changes applied.`,
             <div className="space-y-4 mb-6 min-h-[300px] max-h-[500px] overflow-y-auto">
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-[300px] text-center">
-                  <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full flex items-center justify-center mb-4">
-                    <Sparkles className="w-8 h-8 text-blue-600" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-slate-900 mb-2">
+                  <AIFace 
+                    isListening={isListening}
+                    isProcessing={isProcessing}
+                    isIdle={!isListening && !isProcessing}
+                  />
+                  <h3 className="text-lg font-semibold text-slate-900 mb-1 mt-4">
                     AI Documentation Studio
                   </h3>
-                  <p className="text-slate-600 max-w-md mb-4 text-sm">
-                    Voice commands • Professional templates • Visual content • Smart formatting
+                  <p className="text-slate-600 max-w-md mb-3 text-xs">
+                    Talk to me or type • Professional templates • Visual content
                   </p>
                   <Button
                     onClick={() => setShowTemplates(true)}
-                    className="mb-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+                    size="sm"
+                    className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 h-8"
                   >
-                    <Layout className="w-4 h-4 mr-2" />
-                    Choose Template
+                    <Layout className="w-3 h-3 mr-2" />
+                    Templates
                   </Button>
-                  <div className="grid grid-cols-2 gap-2 w-full max-w-xl">
-                    {quickPrompts.map((prompt, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => handleQuickPrompt(prompt)}
-                        className="text-left p-3 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors text-xs text-slate-700"
-                      >
-                        <Sparkles className="w-3 h-3 inline-block mr-1 text-blue-600" />
-                        {prompt}
-                      </button>
-                    ))}
-                  </div>
                 </div>
               ) : (
                 <>
