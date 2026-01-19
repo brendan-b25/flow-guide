@@ -25,6 +25,16 @@ export default function AIFace({ isListening, isProcessing, isIdle, customizatio
     const drawFace = () => {
       ctx.clearRect(0, 0, width, height);
 
+      // Helper function for color adjustment
+      const adjustBrightness = (color, percent) => {
+        const num = parseInt(color.replace("#",""), 16);
+        const amt = Math.round(2.55 * percent);
+        const R = (num >> 16) + amt;
+        const G = (num >> 8 & 0x00FF) + amt;
+        const B = (num & 0x0000FF) + amt;
+        return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 + (G<255?G<1?0:G:255)*0x100 + (B<255?B<1?0:B:255)).toString(16).slice(1);
+      };
+
       // Background glow
       if (isListening || isProcessing) {
         const gradient = ctx.createRadialGradient(width / 2, height / 2, 0, width / 2, height / 2, width / 2);
@@ -41,14 +51,6 @@ export default function AIFace({ isListening, isProcessing, isIdle, customizatio
       ctx.beginPath();
       ctx.ellipse(centerX, centerY - 15, 88, 98, 0, 0, Math.PI * 2);
       const hairGradient = ctx.createRadialGradient(centerX - 20, centerY - 60, 20, centerX, centerY - 20, 100);
-      const adjustBrightness = (color, percent) => {
-        const num = parseInt(color.replace("#",""), 16);
-        const amt = Math.round(2.55 * percent);
-        const R = (num >> 16) + amt;
-        const G = (num >> 8 & 0x00FF) + amt;
-        const B = (num & 0x0000FF) + amt;
-        return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 + (G<255?G<1?0:G:255)*0x100 + (B<255?B<1?0:B:255)).toString(16).slice(1);
-      };
       hairGradient.addColorStop(0, adjustBrightness(hairColor, 5));
       hairGradient.addColorStop(0.4, hairColor);
       hairGradient.addColorStop(0.7, adjustBrightness(hairColor, -5));
@@ -80,14 +82,6 @@ export default function AIFace({ isListening, isProcessing, isIdle, customizatio
       
       // Base skin tone
       const faceGradient = ctx.createRadialGradient(centerX, centerY - 30, 20, centerX, centerY + 30, 100);
-      const adjustBrightness = (color, percent) => {
-        const num = parseInt(color.replace("#",""), 16);
-        const amt = Math.round(2.55 * percent);
-        const R = (num >> 16) + amt;
-        const G = (num >> 8 & 0x00FF) + amt;
-        const B = (num & 0x0000FF) + amt;
-        return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 + (G<255?G<1?0:G:255)*0x100 + (B<255?B<1?0:B:255)).toString(16).slice(1);
-      };
       faceGradient.addColorStop(0, adjustBrightness(skinTone, 5));
       faceGradient.addColorStop(0.3, skinTone);
       faceGradient.addColorStop(0.6, adjustBrightness(skinTone, -3));
@@ -221,14 +215,6 @@ export default function AIFace({ isListening, isProcessing, isIdle, customizatio
           ctx.beginPath();
           ctx.arc(x, y, 6.5, 0, Math.PI * 2);
           const outerGradient = ctx.createRadialGradient(x, y, 0, x, y, 6.5);
-          const adjustBrightness = (color, percent) => {
-            const num = parseInt(color.replace("#",""), 16);
-            const amt = Math.round(2.55 * percent);
-            const R = (num >> 16) + amt;
-            const G = (num >> 8 & 0x00FF) + amt;
-            const B = (num & 0x0000FF) + amt;
-            return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 + (G<255?G<1?0:G:255)*0x100 + (B<255?B<1?0:B:255)).toString(16).slice(1);
-          };
           outerGradient.addColorStop(0, adjustBrightness(eyeColor, 15));
           outerGradient.addColorStop(0.3, adjustBrightness(eyeColor, 8));
           outerGradient.addColorStop(0.6, eyeColor);
@@ -345,14 +331,6 @@ export default function AIFace({ isListening, isProcessing, isIdle, customizatio
         ctx.quadraticCurveTo(centerX, mouthY - mouthOpen / 2 - 3, centerX + 3, mouthY - mouthOpen / 2);
         ctx.quadraticCurveTo(centerX + 10, mouthY - mouthOpen / 2 - 2, centerX + 22, mouthY - mouthOpen / 2);
         const upperLipGrad = ctx.createLinearGradient(centerX, mouthY - mouthOpen / 2 - 5, centerX, mouthY - mouthOpen / 2 + 2);
-        const adjustBrightness = (color, percent) => {
-          const num = parseInt(color.replace("#",""), 16);
-          const amt = Math.round(2.55 * percent);
-          const R = (num >> 16) + amt;
-          const G = (num >> 8 & 0x00FF) + amt;
-          const B = (num & 0x0000FF) + amt;
-          return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 + (G<255?G<1?0:G:255)*0x100 + (B<255?B<1?0:B:255)).toString(16).slice(1);
-        };
         upperLipGrad.addColorStop(0, adjustBrightness(lipColor, -5));
         upperLipGrad.addColorStop(1, adjustBrightness(lipColor, -10));
         ctx.fillStyle = upperLipGrad;
