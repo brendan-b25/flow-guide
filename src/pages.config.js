@@ -7,6 +7,7 @@ import ManualView from './pages/ManualView';
 import Manuals from './pages/Manuals';
 import SavedDocuments from './pages/SavedDocuments';
 import Templates from './pages/Templates';
+import Copilot from './pages/Copilot';
 import __Layout from './Layout.jsx';
 
 
@@ -20,6 +21,7 @@ export const PAGES = {
     "Manuals": Manuals,
     "SavedDocuments": SavedDocuments,
     "Templates": Templates,
+    "Copilot": Copilot,
 }
 
 export const pagesConfig = {

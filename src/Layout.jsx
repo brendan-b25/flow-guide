@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from './utils';
-import { FileText, BookOpen, Home, Menu, X, ChevronRight } from 'lucide-react';
+import { FileText, BookOpen, Home, Menu, X, ChevronRight, Sparkles } from 'lucide-react';
 
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
@@ -17,6 +17,7 @@ export default function Layout({ children, currentPageName }) {
     { name: 'Documents', icon: FileText, page: 'DocumentGenerator' },
     { name: 'Cheat Sheets', icon: FileText, page: 'CheatSheetGenerator' },
     { name: 'Saved', icon: FileText, page: 'SavedDocuments' },
+    { name: 'AI Copilot', icon: Sparkles, page: 'Copilot' },
   ];
 
   return (
