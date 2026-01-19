@@ -22,6 +22,7 @@ export default function SavedDocuments() {
   const [editDialog, setEditDialog] = useState({ open: false, item: null, type: null });
   const [editPrompt, setEditPrompt] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [applyingEnhancementIndex, setApplyingEnhancementIndex] = useState(null);
   const [selectedForCombine, setSelectedForCombine] = useState([]);
   const [isCombining, setIsCombining] = useState(false);
   const [openedDocument, setOpenedDocument] = useState(null);
@@ -278,10 +279,10 @@ Generate practical, actionable enhancements. Each should be a clear, specific im
     }
   };
 
-  const applyEnhancement = async (enhancement) => {
+  const applyEnhancement = async (enhancement, index) => {
     if (!openedDocument) return;
 
-    setIsEditing(true);
+    setApplyingEnhancementIndex(index);
     try {
       const isCheatSheet = documentType === 'cheatsheet';
       const content = openedDocument.content;
@@ -360,7 +361,7 @@ Generate an improved version with the same structure. Keep it professional and p
       console.error('Apply enhancement error:', error);
       alert('Failed to apply enhancement. Please try again.');
     } finally {
-      setIsEditing(false);
+      setApplyingEnhancementIndex(null);
     }
   };
 
@@ -1051,11 +1052,11 @@ Remove duplicates, organize logically by topic/workflow, add cross-references wh
                     </div>
                     <Button
                       size="sm"
-                      onClick={() => applyEnhancement(enhancement)}
-                      disabled={isEditing}
+                      onClick={() => applyEnhancement(enhancement, idx)}
+                      disabled={applyingEnhancementIndex !== null}
                       className="bg-blue-600 hover:bg-blue-700 shrink-0"
                     >
-                      {isEditing ? (
+                      {applyingEnhancementIndex === idx ? (
                         <Loader2 className="w-3 h-3 animate-spin" />
                       ) : (
                         <>
