@@ -110,24 +110,46 @@ export default function CheatSheetGenerator() {
       const result = await base44.integrations.Core.InvokeLLM({
         prompt: `Create a quick reference cheat sheet for the following product(s). Make it practical, easy to scan, and focused on the most important information.
 
-${productInfo}
+      ${productInfo}
 
-MEASUREMENT UNITS: ${unitInstructions[unitPreference]}
-Always convert and round measurements to convenient, easy-to-measure amounts. Prefer whole numbers or simple fractions (½, ¼, ¾).
+      MEASUREMENT UNITS: ${unitInstructions[unitPreference]}
+      Always convert and round measurements to convenient, easy-to-measure amounts. Prefer whole numbers or simple fractions (½, ¼, ¾).
 
-Generate a structured cheat sheet with:
-- title: Catchy, descriptive title
-- summary: One-sentence overview
-- sections: Array of sections, each with:
-  - heading: Section title
-  - items: Array of key points/steps with measurements in the preferred units (keep concise)
-  - type: "dosage", "steps", "tips", "safety", "troubleshooting", or "general"
+      CRITICAL FORMATTING INSTRUCTIONS:
 
-For products with dosing information (pools, chemicals, etc.), create clear dosage tables using the 'table' field with headers and rows.
-For multi-product sheets, organize by product or by task/use case.
-Use Australian English. Focus on quick reference - make it scannable and accurate.
+      1. TABLE FORMATTING - READ CAREFULLY:
+      - ALWAYS use the 'table' object (with 'headers' and 'rows' arrays) for ANY tabular data
+      - NEVER put table-like data in the 'items' array as plain text or markdown
+      - Examples requiring tables: dosage charts, measurement schedules, chemical levels, comparison charts, rating scales
+      - Table structure: { headers: ["Column 1", "Column 2", ...], rows: [["Cell 1", "Cell 2", ...], ["Cell 1", "Cell 2", ...]] }
+      - First row in 'rows' should contain data, NOT headers (headers are separate)
 
-When a section would benefit from a table (dosage charts, measurements, schedules), include it using the table field with headers and rows arrays.`,
+      2. WHEN TO USE TABLES:
+      - Dosage/chemical information (e.g., Pool Size vs Amount to Add)
+      - Measurement ranges (e.g., pH levels, chlorine levels, temperatures)
+      - Schedules or timelines (e.g., Daily, Weekly, Monthly tasks)
+      - Comparison data (e.g., different products or scenarios)
+      - Any data with 2+ columns of related information
+
+      3. SECTION STRUCTURE:
+      Generate a structured cheat sheet with:
+      - title: Catchy, descriptive title
+      - summary: One-sentence overview
+      - sections: Array of sections, each with:
+      - heading: Clear section title
+      - items: Array of brief key points (ONLY if not table data)
+      - type: "dosage", "steps", "tips", "safety", "troubleshooting", or "general"
+      - table: { headers: [...], rows: [[...], [...]] } - USE THIS for all tabular data
+
+      4. CONTENT QUALITY:
+      - Be specific and actionable
+      - Use precise measurements in the preferred units
+      - Provide clear step-by-step instructions where applicable
+      - Include safety warnings for hazardous materials
+      - Make it scannable with clear headings and organized data
+
+      For multi-product sheets, organize by product or by task/use case.
+      Use Australian English throughout. Focus on quick reference - make it scannable, accurate, and professionally formatted.`,
         file_urls: fileUrls.length > 0 ? fileUrls : undefined,
         response_json_schema: {
           type: "object",
@@ -409,15 +431,26 @@ When a section would benefit from a table (dosage charts, measurements, schedule
       const result = await base44.integrations.Core.InvokeLLM({
         prompt: `Edit this cheat sheet based on the request: "${editPrompt}"
 
-Current cheat sheet:
-${JSON.stringify(editingSheet.content, null, 2)}
+      Current cheat sheet:
+      ${JSON.stringify(editingSheet.content, null, 2)}
 
-Generate an improved version with the same structure:
-- title: Catchy title
-- summary: One-sentence overview
-- sections: Array with heading, items (array of strings), and type (dosage/steps/tips/safety/troubleshooting/general)
+      CRITICAL FORMATTING INSTRUCTIONS:
+      - ALWAYS use the 'table' object (with 'headers' and 'rows' arrays) for tabular data
+      - NEVER convert tables to plain text or markdown in 'items'
+      - Maintain or add table formatting for dosage charts, measurements, schedules, comparisons
+      - Use 'items' array only for bullet points and key points that are NOT tabular
 
-Keep it scannable and practical. Use Australian English.`,
+      Generate an improved version with the same structure:
+      - title: Catchy, clear title
+      - summary: One-sentence overview
+      - sections: Array with:
+      - heading: Section title
+      - items: Array of strings (for bullet points, NOT tables)
+      - type: "dosage", "steps", "tips", "safety", "troubleshooting", or "general"
+      - table: { headers: [...], rows: [[...], [...]] } - for all tabular data
+      - image_url: Keep existing if present
+
+      Keep it scannable, practical, and professionally formatted. Use Australian English.`,
         response_json_schema: {
           type: "object",
           properties: {
@@ -980,17 +1013,22 @@ Keep it scannable and practical. Use Australian English.`,
       const result = await base44.integrations.Core.InvokeLLM({
         prompt: `Convert all measurements in this cheat sheet to the specified units:
 
-Current cheat sheet:
-${JSON.stringify(targetSheet, null, 2)}
+      Current cheat sheet:
+      ${JSON.stringify(targetSheet, null, 2)}
 
-${unitInstructions[convertToUnit]}
+      ${unitInstructions[convertToUnit]}
 
-IMPORTANT: Only change the measurements - keep all other content, structure, headings, and information exactly the same. Just convert the numbers and units.
+      CRITICAL INSTRUCTIONS:
+      - Only change the measurements - keep all other content, structure, and formatting EXACTLY the same
+      - Maintain ALL existing tables with their 'headers' and 'rows' structure
+      - NEVER convert tables to plain text or markdown
+      - Convert numbers and units in both 'items' arrays AND 'table' data
+      - Keep all 'image_url' fields unchanged
 
-Return the cheat sheet with the same structure:
-- title: Keep the same
-- summary: Keep the same (update only if it contains measurements)
-- sections: Same sections with converted measurements`,
+      Return the cheat sheet with the same structure:
+      - title: Keep the same
+      - summary: Keep the same (update only if it contains measurements)
+      - sections: Same sections with converted measurements, maintaining table structures`,
         response_json_schema: {
           type: "object",
           properties: {
@@ -1116,15 +1154,26 @@ Style: Clean, simple diagram or infographic that visually explains the concept. 
       const result = await base44.integrations.Core.InvokeLLM({
         prompt: `Enhance this cheat sheet based on the request: "${aiEnhancePrompt}"
 
-Current cheat sheet:
-${JSON.stringify(generatedSheet, null, 2)}
+      Current cheat sheet:
+      ${JSON.stringify(generatedSheet, null, 2)}
 
-Generate an improved version with the same structure:
-- title: Catchy title
-- summary: One-sentence overview
-- sections: Array with heading, items (array of strings), and type (dosage/steps/tips/safety/troubleshooting/general)
+      CRITICAL FORMATTING INSTRUCTIONS:
+      - ALWAYS use the 'table' object (with 'headers' and 'rows' arrays) for any tabular data
+      - NEVER convert tables to plain text or markdown
+      - Add table formatting for any data that would benefit from columns/rows
+      - Maintain existing tables and their proper structure
 
-Keep it scannable and practical. Use Australian English.`,
+      Generate an improved version with the same structure:
+      - title: Catchy, descriptive title
+      - summary: One-sentence overview
+      - sections: Array with:
+      - heading: Section title
+      - items: Array of strings (bullet points, NOT tables)
+      - type: "dosage", "steps", "tips", "safety", "troubleshooting", or "general"
+      - table: { headers: [...], rows: [[...], [...]] } - USE for all tabular data
+      - image_url: Keep existing if present
+
+      Keep it scannable, practical, and professionally formatted. Use Australian English.`,
         response_json_schema: {
           type: "object",
           properties: {
@@ -1190,14 +1239,23 @@ Keep it scannable and practical. Use Australian English.`,
       const result = await base44.integrations.Core.InvokeLLM({
         prompt: `Combine these ${sheetsToMerge.length} cheat sheets into one unified, well-organized reference guide:
 
-${combinedContent}
+      ${combinedContent}
 
-Create a single comprehensive cheat sheet with:
-- title: Descriptive title covering all products/topics
-- summary: Brief overview of what's included
-- sections: Organized sections that combine related information from all sheets
+      CRITICAL FORMATTING INSTRUCTIONS:
+      - Maintain ALL table structures from the source sheets using 'table' object with 'headers' and 'rows'
+      - NEVER convert tables to plain text or markdown
+      - Combine similar tables into comprehensive ones where appropriate
+      - Use tables for any comparison data, dosage info, measurements, or schedules
 
-Remove duplicates, organize logically, and make it scannable. Use Australian English.`,
+      Create a single comprehensive cheat sheet with:
+      - title: Descriptive title covering all products/topics
+      - summary: Brief overview of what's included
+      - sections: Organized sections that combine related information from all sheets
+      - Use 'table' format for any tabular data
+      - Use 'items' arrays only for bullet points
+      - Keep 'image_url' fields where relevant
+
+      Remove duplicates, organize logically, maintain professional formatting, and make it scannable. Use Australian English.`,
         response_json_schema: {
           type: "object",
           properties: {

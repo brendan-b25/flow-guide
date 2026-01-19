@@ -22,19 +22,42 @@ export default function DocumentGenerator() {
     setIsGenerating(true);
     try {
       const result = await base44.integrations.Core.InvokeLLM({
-        prompt: `Generate a professional document template based on this description: "${description}"
+        prompt: `Generate a professional, fully-formatted document template based on this description: "${description}"
 
-Create a structured document with:
-- title: Document title
-- description: Brief description
-- sections: Array of sections, each with:
-  - heading: Section heading
-  - content: Detailed content (plain text or bullet points)
-  - type: "text", "table", or "list"
-  - tableData: (if type is "table") Array of rows, each row is an array of cell values
-  - listItems: (if type is "list") Array of list items
+CRITICAL FORMATTING INSTRUCTIONS - READ CAREFULLY:
 
-Make it professional, complete, and ready to use. Use Australian English. Include all necessary sections for this type of document.`,
+1. TABLE FORMATTING:
+   - ALWAYS use type: "table" with tableData array for ANY tabular data
+   - NEVER put table-like content as plain text or markdown in "content" or "listItems"
+   - Examples requiring tables: forms with fields, data collection sheets, comparison charts, schedules, checklists with columns
+   - Table structure: tableData: [["Header 1", "Header 2", ...], ["Data 1", "Data 2", ...], ...]
+   - First row should be headers, subsequent rows are data
+
+2. WHEN TO USE EACH TYPE:
+   - type: "table" - For any structured data with rows/columns (forms, data sheets, schedules, comparison tables)
+   - type: "list" - For bullet points, sequential steps, or simple lists (use listItems array)
+   - type: "text" - For paragraphs, explanations, or narrative content (use content field)
+
+3. SECTION STRUCTURE:
+   Create a structured document with:
+   - title: Professional, descriptive document title
+   - description: Brief overview of the document's purpose
+   - sections: Array of sections, each with:
+     - heading: Clear section heading
+     - content: Detailed text content (for type: "text")
+     - type: "text", "table", or "list" - CHOOSE APPROPRIATELY
+     - tableData: Array of arrays (for type: "table") - [[headers...], [row1...], [row2...]]
+     - listItems: Array of strings (for type: "list")
+
+4. CONTENT QUALITY:
+   - Make it complete and professional
+   - Include all relevant sections for this document type
+   - Be specific and actionable
+   - Use clear, concise language
+   - Organize logically with appropriate headings
+   - Ensure it's ready to use without further editing
+
+Use Australian English throughout. Create a document that looks professional when exported to Word, Excel, or PDF.`,
         response_json_schema: {
           type: "object",
           properties: {
