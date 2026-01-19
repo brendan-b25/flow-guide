@@ -28,68 +28,205 @@ export default function AIFace({ isListening, isProcessing, isIdle }) {
         ctx.fillRect(0, 0, width, height);
       }
 
-      // Face circle
+      const centerX = width / 2;
+      const centerY = height / 2;
+
+      // Head/Hair silhouette
       ctx.beginPath();
-      ctx.arc(width / 2, height / 2, 80, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(241, 245, 249, 0.95)';
+      ctx.ellipse(centerX, centerY - 10, 85, 95, 0, 0, Math.PI * 2);
+      const hairGradient = ctx.createLinearGradient(centerX, centerY - 100, centerX, centerY);
+      hairGradient.addColorStop(0, '#475569');
+      hairGradient.addColorStop(1, '#64748B');
+      ctx.fillStyle = hairGradient;
       ctx.fill();
-      ctx.strokeStyle = isListening ? '#3B82F6' : isProcessing ? '#2563EB' : '#CBD5E1';
-      ctx.lineWidth = isListening || isProcessing ? 4 : 2;
+
+      // Face shape (skin tone)
+      ctx.beginPath();
+      ctx.ellipse(centerX, centerY + 5, 75, 85, 0, 0.2, Math.PI - 0.2);
+      const skinGradient = ctx.createRadialGradient(centerX, centerY - 20, 10, centerX, centerY + 20, 90);
+      skinGradient.addColorStop(0, '#FFF5F0');
+      skinGradient.addColorStop(0.5, '#FFE8DC');
+      skinGradient.addColorStop(1, '#F5DDD0');
+      ctx.fillStyle = skinGradient;
+      ctx.fill();
+
+      // Neck shadow
+      ctx.beginPath();
+      ctx.ellipse(centerX, centerY + 80, 30, 15, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(203, 213, 225, 0.3)';
+      ctx.fill();
+
+      // Cheek blush
+      ctx.beginPath();
+      ctx.ellipse(centerX - 40, centerY + 15, 15, 10, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(251, 207, 232, 0.4)';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(centerX + 40, centerY + 15, 15, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Nose
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY);
+      ctx.quadraticCurveTo(centerX + 5, centerY + 15, centerX + 8, centerY + 18);
+      ctx.strokeStyle = 'rgba(100, 116, 139, 0.3)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Eyebrows with gradient
+      const browY = centerY - 30;
+      const leftBrowX = centerX - 30;
+      const rightBrowX = centerX + 30;
+
+      ctx.beginPath();
+      ctx.moveTo(leftBrowX - 15, browY + (isProcessing ? -2 : 0));
+      ctx.quadraticCurveTo(leftBrowX, browY - 3 + (isProcessing ? -2 : 0), leftBrowX + 15, browY + (isProcessing ? 2 : 0));
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(rightBrowX - 15, browY + (isProcessing ? 2 : 0));
+      ctx.quadraticCurveTo(rightBrowX, browY - 3 + (isProcessing ? -2 : 0), rightBrowX + 15, browY + (isProcessing ? -2 : 0));
       ctx.stroke();
 
       // Eyes
-      const leftEyeX = width / 2 - 25;
-      const rightEyeX = width / 2 + 25;
-      const eyeY = height / 2 - 15;
+      const leftEyeX = centerX - 30;
+      const rightEyeX = centerX + 30;
+      const eyeY = centerY - 15;
       const blinkPhase = Math.sin(time * 2);
-      const eyeHeight = isListening || isProcessing ? 12 : (blinkPhase < -0.95 ? 2 : 12);
+      const eyeHeight = isListening || isProcessing ? 14 : (blinkPhase < -0.95 ? 2 : 14);
 
-      // Left eye
+      // Eye whites
       ctx.beginPath();
-      ctx.ellipse(leftEyeX + eyePosition.x * 3, eyeY + eyePosition.y * 3, 8, eyeHeight, 0, 0, Math.PI * 2);
-      ctx.fillStyle = '#1E293B';
+      ctx.ellipse(leftEyeX + eyePosition.x * 4, eyeY + eyePosition.y * 4, 12, eyeHeight, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#FFFFFF';
       ctx.fill();
+      ctx.strokeStyle = 'rgba(100, 116, 139, 0.2)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
 
-      // Right eye
       ctx.beginPath();
-      ctx.ellipse(rightEyeX + eyePosition.x * 3, eyeY + eyePosition.y * 3, 8, eyeHeight, 0, 0, Math.PI * 2);
-      ctx.fillStyle = '#1E293B';
+      ctx.ellipse(rightEyeX + eyePosition.x * 4, eyeY + eyePosition.y * 4, 12, eyeHeight, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#FFFFFF';
       ctx.fill();
+      ctx.stroke();
 
-      // Mouth
-      ctx.beginPath();
-      const mouthY = height / 2 + 25;
+      if (eyeHeight > 5) {
+        // Iris (blue)
+        ctx.beginPath();
+        ctx.arc(leftEyeX + eyePosition.x * 4, eyeY + eyePosition.y * 4, 7, 0, Math.PI * 2);
+        const irisGradient = ctx.createRadialGradient(
+          leftEyeX + eyePosition.x * 4 - 2, eyeY + eyePosition.y * 4 - 2, 0,
+          leftEyeX + eyePosition.x * 4, eyeY + eyePosition.y * 4, 7
+        );
+        irisGradient.addColorStop(0, '#60A5FA');
+        irisGradient.addColorStop(0.5, '#3B82F6');
+        irisGradient.addColorStop(1, '#2563EB');
+        ctx.fillStyle = irisGradient;
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(rightEyeX + eyePosition.x * 4, eyeY + eyePosition.y * 4, 7, 0, Math.PI * 2);
+        const irisGradient2 = ctx.createRadialGradient(
+          rightEyeX + eyePosition.x * 4 - 2, eyeY + eyePosition.y * 4 - 2, 0,
+          rightEyeX + eyePosition.x * 4, eyeY + eyePosition.y * 4, 7
+        );
+        irisGradient2.addColorStop(0, '#60A5FA');
+        irisGradient2.addColorStop(0.5, '#3B82F6');
+        irisGradient2.addColorStop(1, '#2563EB');
+        ctx.fillStyle = irisGradient2;
+        ctx.fill();
+
+        // Pupils
+        ctx.beginPath();
+        ctx.arc(leftEyeX + eyePosition.x * 4, eyeY + eyePosition.y * 4, 3, 0, Math.PI * 2);
+        ctx.fillStyle = '#1E293B';
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(rightEyeX + eyePosition.x * 4, eyeY + eyePosition.y * 4, 3, 0, Math.PI * 2);
+        ctx.fillStyle = '#1E293B';
+        ctx.fill();
+
+        // Eye highlights
+        ctx.beginPath();
+        ctx.arc(leftEyeX + eyePosition.x * 4 - 2, eyeY + eyePosition.y * 4 - 2, 2, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(rightEyeX + eyePosition.x * 4 - 2, eyeY + eyePosition.y * 4 - 2, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Eyelashes
+      if (eyeHeight > 5) {
+        ctx.strokeStyle = '#475569';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 5; i++) {
+          const angle = -0.5 + i * 0.25;
+          ctx.beginPath();
+          ctx.moveTo(leftEyeX + Math.cos(angle) * 12, eyeY - eyeHeight + Math.sin(angle) * 12);
+          ctx.lineTo(leftEyeX + Math.cos(angle) * 16, eyeY - eyeHeight + Math.sin(angle) * 16);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(rightEyeX + Math.cos(angle) * 12, eyeY - eyeHeight + Math.sin(angle) * 12);
+          ctx.lineTo(rightEyeX + Math.cos(angle) * 16, eyeY - eyeHeight + Math.sin(angle) * 16);
+          ctx.stroke();
+        }
+      }
+
+      // Mouth with lips
+      const mouthY = centerY + 30;
       
       if (isListening) {
-        // Open mouth when listening
-        const mouthOpen = 5 + Math.sin(time * 8) * 3;
-        ctx.ellipse(width / 2, mouthY, 25, mouthOpen, 0, 0, Math.PI * 2);
-        ctx.fillStyle = '#475569';
+        // Open mouth with lips
+        const mouthOpen = 8 + Math.sin(time * 8) * 4;
+        
+        // Upper lip
+        ctx.beginPath();
+        ctx.ellipse(centerX, mouthY - mouthOpen / 2, 22, 4, 0, 0, Math.PI);
+        ctx.fillStyle = '#E57373';
+        ctx.fill();
+        
+        // Lower lip
+        ctx.beginPath();
+        ctx.ellipse(centerX, mouthY + mouthOpen / 2, 22, 5, 0, 0, Math.PI);
+        ctx.fillStyle = '#EF5350';
+        ctx.fill();
+        
+        // Mouth interior
+        ctx.beginPath();
+        ctx.ellipse(centerX, mouthY, 18, mouthOpen, 0, 0, Math.PI * 2);
+        ctx.fillStyle = '#7C4A4A';
         ctx.fill();
       } else if (isProcessing) {
-        // Thinking expression
-        ctx.arc(width / 2, mouthY, 20, 0.2, Math.PI - 0.2);
-        ctx.strokeStyle = '#475569';
+        // Thinking expression (slight smile)
+        ctx.beginPath();
+        ctx.arc(centerX, mouthY, 22, 0.15, Math.PI - 0.15);
+        ctx.strokeStyle = '#B0756F';
         ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
         ctx.stroke();
       } else {
-        // Gentle smile
-        ctx.arc(width / 2, mouthY, 20, 0.1, Math.PI - 0.1);
-        ctx.strokeStyle = '#64748B';
+        // Gentle smile with lips
+        ctx.beginPath();
+        ctx.arc(centerX, mouthY - 2, 20, 0.1, Math.PI - 0.1);
+        ctx.strokeStyle = '#E57373';
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+        
+        // Lip highlight
+        ctx.beginPath();
+        ctx.arc(centerX, mouthY - 2, 20, 0.1, Math.PI - 0.1);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
         ctx.lineWidth = 2;
         ctx.stroke();
       }
-
-      // Eyebrows
-      ctx.beginPath();
-      const browY = height / 2 - 35;
-      ctx.moveTo(leftEyeX - 12, browY + (isProcessing ? -2 : 0));
-      ctx.lineTo(leftEyeX + 12, browY + (isProcessing ? 2 : 0));
-      ctx.moveTo(rightEyeX - 12, browY + (isProcessing ? 2 : 0));
-      ctx.lineTo(rightEyeX + 12, browY + (isProcessing ? -2 : 0));
-      ctx.strokeStyle = '#475569';
-      ctx.lineWidth = 2.5;
-      ctx.stroke();
 
       // Audio waves when listening
       if (isListening) {
