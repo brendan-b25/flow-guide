@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
-import { Sparkles, Send, Loader2, FileText, RefreshCw, Paperclip, X, Download, Copy, Edit3, Mic, MicOff, Image as ImageIcon, Layout, Palette, Settings } from 'lucide-react';
+import { Sparkles, Send, Loader2, FileText, RefreshCw, Paperclip, X, Download, Copy, Edit3, Mic, MicOff, Image as ImageIcon, Layout, Palette, Settings, Brain } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -35,6 +35,9 @@ export default function Copilot() {
       lipColor: '#DC7B7B',
       voice: 'default'
     };
+  });
+  const [thinkingMode, setThinkingMode] = useState(() => {
+    return localStorage.getItem('aiThinkingMode') || 'deep';
   });
   const [availableVoices, setAvailableVoices] = useState([]);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -94,7 +97,9 @@ export default function Copilot() {
   }, [aiCustomization]);
 
   useEffect(() => {
-    localStorage.setItem('aiThinkingMode', thinkingMode);
+    if (thinkingMode) {
+      localStorage.setItem('aiThinkingMode', thinkingMode);
+    }
   }, [thinkingMode]);
 
   const speakText = (text) => {
@@ -213,8 +218,34 @@ export default function Copilot() {
         generatedImageUrl = await generateVisualContent(userMessage);
       }
 
+      const thinkingInstructions = {
+        standard: `You are FlowGuide Copilot, a professional documentation assistant. Create clear, well-structured content with practical guidance.`,
+        deep: `You are FlowGuide Copilot, an expert AI documentation specialist with advanced analytical capabilities.
+
+DEEP THINKING PROCESS:
+1. Thoroughly analyze the user's request - understand context, requirements, and end goals
+2. Break down complex topics into logical, comprehensive components
+3. Consider multiple approaches and select the optimal structure and content
+4. Think through edge cases, safety considerations, and practical scenarios
+5. Apply rigorous reasoning to ensure technical accuracy and completeness
+
+Provide comprehensive, deeply reasoned responses with thorough explanations.`,
+        technical: `You are FlowGuide Copilot, a senior technical documentation expert with deep expertise in complex systems, procedures, and SOPs.
+
+TECHNICAL EXPERT MODE - DEEP ANALYSIS:
+• Analyze requirements with system-level perspective and technical precision
+• Consider dependencies, prerequisites, compliance requirements, and downstream impacts
+• Apply engineering principles, industry standards, and best practices
+• Include detailed technical specifications, measurements, and parameters
+• Provide comprehensive explanations with technical rationale and theoretical foundations
+• Think through failure modes, risk mitigation, error handling, and troubleshooting workflows
+• Structure content for technical audiences while maintaining exceptional clarity
+
+Use precise terminology, include maximum technical depth, explain underlying mechanisms and principles. For SOPs: Include purpose, scope, roles & responsibilities, detailed procedures with decision trees, quality controls, safety protocols, compliance requirements, and comprehensive troubleshooting.`
+      };
+
       const result = await base44.integrations.Core.InvokeLLM({
-        prompt: `You are FlowGuide Copilot, an expert AI assistant specialized in creating comprehensive, professional documentation, procedures, cheat sheets, and guides.
+        prompt: `${thinkingInstructions[thinkingMode]}
 
 ${generatedImageUrl ? `A visual illustration has been generated and is available at: ${generatedImageUrl}\nInclude this in your response where appropriate using markdown image syntax: ![Visual Guide](${generatedImageUrl})\n\n` : ''}
 
@@ -316,10 +347,10 @@ Use Australian English throughout. Be professional, thorough, and detailed.`,
   };
 
   const quickPrompts = [
-    "Create a safety procedure template",
-    "Write a chemical handling guide",
-    "Generate a maintenance checklist",
-    "Create a training document outline",
+    "Create a comprehensive SOP for equipment operation",
+    "Write a detailed safety procedure with risk assessment",
+    "Generate a technical maintenance guide with troubleshooting",
+    "Create a quality control checklist with verification steps",
   ];
 
   const handleQuickPrompt = (prompt) => {
@@ -663,7 +694,13 @@ Return the complete revised document with all requested changes applied.`,
                   Create and format professional documentation
                 </p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
+                <div className="px-3 py-1.5 rounded-full bg-gradient-to-r from-slate-100 to-blue-100 text-xs font-medium text-slate-700 flex items-center gap-1.5 border border-blue-200">
+                  <Brain className="w-3.5 h-3.5 text-blue-600" />
+                  {thinkingMode === 'standard' && 'Standard'}
+                  {thinkingMode === 'deep' && 'Deep Thinking'}
+                  {thinkingMode === 'technical' && 'Technical Expert'}
+                </div>
                 <Button
                   variant="outline"
                   size="sm"
@@ -671,7 +708,7 @@ Return the complete revised document with all requested changes applied.`,
                   className="gap-2"
                 >
                   <Settings className="w-4 h-4" />
-                  Customize AI
+                  Customize
                 </Button>
                 {messages.length > 0 && (
                   <Button
@@ -1060,9 +1097,12 @@ Return the complete revised document with all requested changes applied.`,
 
         {/* AI Settings Dialog */}
         <Dialog open={showAISettings} onOpenChange={setShowAISettings}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Customize AI Assistant</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                <Settings className="w-5 h-5 text-blue-600" />
+                Customize AI Assistant
+              </DialogTitle>
             </DialogHeader>
             <div className="space-y-6 py-4">
               <div className="flex justify-center">
@@ -1072,6 +1112,51 @@ Return the complete revised document with all requested changes applied.`,
                   isIdle={true}
                   customization={aiCustomization}
                 />
+              </div>
+
+              {/* Thinking Mode Selection */}
+              <div className="space-y-3 pb-4 border-b">
+                <label className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                  <Brain className="w-4 h-4 text-blue-600" />
+                  AI Thinking Mode
+                </label>
+                <div className="grid gap-3">
+                  <button
+                    onClick={() => setThinkingMode('standard')}
+                    className={`p-3 rounded-lg border-2 text-left transition-all ${
+                      thinkingMode === 'standard'
+                        ? 'border-blue-500 bg-blue-50 shadow-sm'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    <div className="font-semibold text-slate-900 text-sm">Standard Mode</div>
+                    <div className="text-xs text-slate-600 mt-0.5">Clear and concise professional responses</div>
+                  </button>
+                  
+                  <button
+                    onClick={() => setThinkingMode('deep')}
+                    className={`p-3 rounded-lg border-2 text-left transition-all ${
+                      thinkingMode === 'deep'
+                        ? 'border-blue-500 bg-blue-50 shadow-sm'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    <div className="font-semibold text-slate-900 text-sm">Deep Thinking Mode ⭐</div>
+                    <div className="text-xs text-slate-600 mt-0.5">Advanced analysis with comprehensive reasoning</div>
+                  </button>
+                  
+                  <button
+                    onClick={() => setThinkingMode('technical')}
+                    className={`p-3 rounded-lg border-2 text-left transition-all ${
+                      thinkingMode === 'technical'
+                        ? 'border-blue-500 bg-blue-50 shadow-sm'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    <div className="font-semibold text-slate-900 text-sm">Technical Expert Mode 🔬</div>
+                    <div className="text-xs text-slate-600 mt-0.5">Maximum technical depth and precision for SOPs</div>
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-4">
