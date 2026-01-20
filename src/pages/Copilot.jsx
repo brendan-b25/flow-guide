@@ -696,31 +696,45 @@ Use Australian English throughout. Be professional, thorough, and detailed.`,
     const pageHeight = pdf.internal.pageSize.getHeight();
     const maxWidth = pageWidth - (margin * 2);
     let y = margin;
+    let pageNumber = 1;
 
-    // Header
-    pdf.setFillColor(37, 99, 235);
-    pdf.rect(0, 0, pageWidth, 15, 'F');
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('FlowGuide Documentation', margin, 10);
-    
-    y = 25;
+    const addHeader = () => {
+      pdf.setFillColor(37, 99, 235);
+      pdf.rect(0, 0, pageWidth, 12, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('FlowGuide Documentation', margin, 8);
+      pdf.setFontSize(8);
+      pdf.text(`Page ${pageNumber}`, pageWidth - margin - 15, 8);
+    };
+
+    const addFooter = () => {
+      pdf.setFontSize(7);
+      pdf.setTextColor(100, 116, 139);
+      pdf.text(`Generated ${new Date().toLocaleDateString('en-AU')} via FlowGuide Copilot`, margin, pageHeight - 8);
+    };
+
+    const checkNewPage = () => {
+      if (y > pageHeight - 25) {
+        addFooter();
+        pdf.addPage();
+        pageNumber++;
+        addHeader();
+        y = 20;
+        pdf.setTextColor(15, 23, 42);
+        return true;
+      }
+      return false;
+    };
+
+    addHeader();
+    y = 20;
     pdf.setTextColor(15, 23, 42);
 
     const lines = canvasContent.split('\n');
     lines.forEach(line => {
-      if (y > pageHeight - 30) {
-        pdf.addPage();
-        // Header on new pages
-        pdf.setFillColor(37, 99, 235);
-        pdf.rect(0, 0, pageWidth, 10, 'F');
-        pdf.setTextColor(255, 255, 255);
-        pdf.setFontSize(8);
-        pdf.text('FlowGuide Documentation', margin, 7);
-        y = 20;
-        pdf.setTextColor(15, 23, 42);
-      }
+      checkNewPage();
 
       if (line.startsWith('###')) {
         pdf.setFontSize(13);
@@ -754,18 +768,27 @@ Use Australian English throughout. Be professional, thorough, and detailed.`,
         pdf.circle(margin + 2, y - 1.5, 0.8, 'F');
         const splitLines = pdf.splitTextToSize(text, maxWidth - 6);
         splitLines.forEach(l => {
+          checkNewPage();
           pdf.text(l, margin + 5, y);
           y += 5.5;
         });
       } else if (line.trim().match(/^\d+\.\s/)) {
         const splitLines = pdf.splitTextToSize(line.trim(), maxWidth - 6);
         splitLines.forEach(l => {
+          checkNewPage();
           pdf.text(l, margin + 2, y);
           y += 5.5;
         });
+      } else if (line.trim().startsWith('---')) {
+        // Page break on horizontal rule
+        checkNewPage();
+        pdf.setDrawColor(203, 213, 225);
+        pdf.line(margin, y, pageWidth - margin, y);
+        y += 8;
       } else if (line.trim()) {
         const splitLines = pdf.splitTextToSize(line, maxWidth);
         splitLines.forEach(l => {
+          checkNewPage();
           pdf.text(l, margin, y);
           y += 5.5;
         });
@@ -774,18 +797,14 @@ Use Australian English throughout. Be professional, thorough, and detailed.`,
       }
     });
 
-    // Footer on last page
-    pdf.setFontSize(8);
-    pdf.setTextColor(100, 116, 139);
-    pdf.text(`Generated ${new Date().toLocaleDateString('en-AU')} via FlowGuide Copilot`, margin, pageHeight - 10);
-
+    addFooter();
     pdf.save('flowguide-document.pdf');
   };
 
   const exportCanvasToWord = async () => {
     if (!canvasContent) return;
 
-    const { AlignmentType, Table, TableRow, TableCell, WidthType, BorderStyle } = await import('docx');
+    const { AlignmentType, PageBreak, Header, Footer } = await import('docx');
     const sections = [];
     const lines = canvasContent.split('\n');
     
@@ -849,6 +868,14 @@ Use Australian English throughout. Be professional, thorough, and detailed.`,
           })
         );
         listType = 'number';
+      } else if (line.trim().startsWith('---')) {
+        // Add page break on horizontal rule
+        flushList();
+        sections.push(
+          new Paragraph({
+            children: [new PageBreak()],
+          })
+        );
       } else if (line.trim()) {
         flushList();
         sections.push(
@@ -870,6 +897,27 @@ Use Australian English throughout. Be professional, thorough, and detailed.`,
           page: {
             margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 }
           }
+        },
+        headers: {
+          default: new Header({
+            children: [
+              new Paragraph({
+                text: "FlowGuide Documentation",
+                alignment: AlignmentType.CENTER,
+                spacing: { after: 200 }
+              })
+            ]
+          })
+        },
+        footers: {
+          default: new Footer({
+            children: [
+              new Paragraph({
+                text: `Generated ${new Date().toLocaleDateString('en-AU')} via FlowGuide Copilot`,
+                alignment: AlignmentType.CENTER
+              })
+            ]
+          })
         },
         children: sections
       }],
@@ -1160,7 +1208,7 @@ Return the complete revised document with all requested changes applied.`,
                   ref={fileInputRef}
                   type="file"
                   multiple
-                  accept="image/*,.pdf,.doc,.docx,.txt"
+                  accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xlsx,.xls"
                   onChange={handleFileSelect}
                   className="hidden"
                 />
