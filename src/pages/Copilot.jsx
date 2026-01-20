@@ -209,17 +209,17 @@ export default function Copilot() {
       
       // Build conversation history for context
       const conversationHistory = messages
-        .slice(-6) // Last 6 messages for context
+        .slice(-6)
         .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
         .join('\n\n');
       
-      // Check if user wants visual content
+      // Check if user wants visual content (but not if they have files attached)
       const needsVisuals = /visual|diagram|illustration|infographic|picture|image|flowchart|chart|mockup|schematic/i.test(userMessage);
       let generatedImageUrl = null;
 
-      if (needsVisuals && isContentRequest) {
+      if (needsVisuals && isContentRequest && currentUrls.length === 0) {
         // Show visual options dialog and wait for user selection
-        setPendingVisualRequest(userMessage);
+        setPendingVisualRequest({ message: userMessage, files: currentUrls });
         setShowVisualOptions(true);
         setIsProcessing(false);
         return;
@@ -344,9 +344,10 @@ Use Australian English throughout. Be professional, thorough, and detailed.`,
       }
     } catch (error) {
       console.error('Copilot error:', error);
+      const errorMessage = error.message || error.toString();
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: 'Sorry, I encountered an error. Please try again.' 
+        content: `I encountered an error: ${errorMessage}. Please try rephrasing your request or breaking it into smaller tasks.` 
       }]);
     } finally {
       setIsProcessing(false);
@@ -452,6 +453,127 @@ CRITICAL REQUIREMENTS:
     }
   };
 
+  const handleSubmitWithoutVisual = async (userMessage, currentUrls = []) => {
+    setIsProcessing(true);
+    
+    try {
+      const isContentRequest = /create|write|generate|draft|make|add|improve|expand|update|revise/i.test(userMessage);
+      const conversationHistory = messages
+        .slice(-6)
+        .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
+        .join('\n\n');
+
+      const thinkingInstructions = {
+        standard: `You are FlowGuide Copilot, a professional documentation assistant. Create clear, well-structured content with practical guidance.`,
+        deep: `You are FlowGuide Copilot, an expert AI documentation specialist with advanced analytical capabilities.
+
+DEEP THINKING PROCESS:
+1. Thoroughly analyze the user's request - understand context, requirements, and end goals
+2. Break down complex topics into logical, comprehensive components
+3. Consider multiple approaches and select the optimal structure and content
+4. Think through edge cases, safety considerations, and practical scenarios
+5. Apply rigorous reasoning to ensure technical accuracy and completeness
+
+Provide comprehensive, deeply reasoned responses with thorough explanations.`,
+        technical: `You are FlowGuide Copilot, a senior technical documentation expert with deep expertise in complex systems, procedures, and SOPs.
+
+TECHNICAL EXPERT MODE - DEEP ANALYSIS:
+• Analyze requirements with system-level perspective and technical precision
+• Consider dependencies, prerequisites, compliance requirements, and downstream impacts
+• Apply engineering principles, industry standards, and best practices
+• Include detailed technical specifications, measurements, and parameters
+• Provide comprehensive explanations with technical rationale and theoretical foundations
+• Think through failure modes, risk mitigation, error handling, and troubleshooting workflows
+• Structure content for technical audiences while maintaining exceptional clarity
+
+Use precise terminology, include maximum technical depth, explain underlying mechanisms and principles. For SOPs: Include purpose, scope, roles & responsibilities, detailed procedures with decision trees, quality controls, safety protocols, compliance requirements, and comprehensive troubleshooting.`
+      };
+
+      const result = await base44.integrations.Core.InvokeLLM({
+        prompt: `${thinkingInstructions[thinkingMode]}
+
+${conversationHistory ? `CONVERSATION HISTORY (for context):
+${conversationHistory}
+
+` : ''}${currentUrls.length > 0 ? `IMPORTANT: The user has attached ${currentUrls.length} file(s). Carefully analyze them and incorporate ALL relevant information in your response.\n\n` : ''}CURRENT USER REQUEST: ${userMessage}
+
+${canvasContent ? `EXISTING CANVAS CONTENT (user may want to modify/extend this):
+${canvasContent}
+
+` : ''}Context: You're helping users in a professional documentation platform that includes:
+- Procedures (detailed step-by-step manuals with comprehensive sections)
+- Cheat Sheets (thorough quick reference guides)
+- Document Templates (professional forms, reports, etc.)
+- Document Generation (AI-powered content creation)
+
+${isContentRequest ? `
+CRITICAL INSTRUCTIONS FOR CONTENT CREATION:
+
+1. READ THE USER'S REQUEST CAREFULLY - Follow EXACTLY what they're asking for
+2. BE COMPREHENSIVE AND DETAILED:
+   - Include ALL relevant information, not just basics
+   - Provide thorough explanations, not minimal summaries
+   - Cover edge cases, safety considerations, and best practices
+   - Include specific measurements, timeframes, and technical details
+   - Add troubleshooting sections where relevant
+
+3. PROFESSIONAL FORMATTING:
+   - Use ## for main section headings
+   - Use ### for subsections when needed
+   - Use **bold** for important terms, warnings, and key points
+   - Use bullet points (-) for lists
+   - Use numbered lists (1. 2. 3.) for sequential steps
+   - Include tables in markdown format for data
+   - Use code blocks with \`\`\` for examples
+
+4. COMPREHENSIVE STRUCTURE:
+   - Introduction/Overview section
+   - Multiple detailed content sections (at least 4-6 sections for full documents)
+   - Safety warnings and precautions (where applicable)
+   - Troubleshooting section (where applicable)
+   - Tips and best practices
+   - References or additional notes
+
+5. DEPTH AND QUALITY:
+   - Write 300-500+ words minimum for full documents
+   - Include specific examples and scenarios
+   - Provide context and explanations, not just lists
+   - Add professional insights and recommendations
+   - Make it immediately usable without further editing
+
+REMEMBER: The user wants EXTENSIVE, IN-DEPTH content. Do not provide minimal or surface-level information.
+` : `
+Provide helpful, detailed, and actionable advice. If continuing a conversation, reference previous context and build upon it.
+`}
+
+Use Australian English throughout. Be professional, thorough, and detailed.`,
+        add_context_from_internet: false,
+        file_urls: currentUrls.length > 0 ? currentUrls : undefined
+      });
+
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: result,
+        isStructured: isContentRequest
+      }]);
+      
+      speakText(result);
+      
+      if (isContentRequest || (canvasContent && /add|improve|expand|update|revise|change|modify/i.test(userMessage))) {
+        setCanvasContent(result);
+      }
+    } catch (error) {
+      console.error('Copilot error:', error);
+      const errorMessage = error.message || error.toString();
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: `I encountered an error: ${errorMessage}. Please try rephrasing your request or breaking it into smaller tasks.` 
+      }]);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleVisualGeneration = async () => {
     if (!pendingVisualRequest) return;
     
@@ -459,7 +581,7 @@ CRITICAL REQUIREMENTS:
     setIsProcessing(true);
 
     try {
-      const userMessage = pendingVisualRequest;
+      const { message: userMessage, files: currentUrls } = pendingVisualRequest;
       setPendingVisualRequest(null);
       
       // Generate visual with selected style
@@ -510,7 +632,7 @@ Place the image at the most appropriate location in your response - typically af
 ` : ''}${conversationHistory ? `CONVERSATION HISTORY (for context):
 ${conversationHistory}
 
-` : ''}CURRENT USER REQUEST: ${userMessage}
+` : ''}${currentUrls && currentUrls.length > 0 ? `IMPORTANT: The user has attached ${currentUrls.length} file(s). Carefully analyze them and incorporate ALL relevant information in your response.\n\n` : ''}CURRENT USER REQUEST: ${userMessage}
 
 ${canvasContent ? `EXISTING CANVAS CONTENT (user may want to modify/extend this):
 ${canvasContent}
@@ -528,7 +650,8 @@ CRITICAL INSTRUCTIONS FOR CONTENT CREATION:
 8. Make it immediately usable without further editing
 
 Use Australian English throughout. Be professional, thorough, and detailed.`,
-        add_context_from_internet: false
+        add_context_from_internet: false,
+        file_urls: currentUrls && currentUrls.length > 0 ? currentUrls : undefined
       });
 
       setMessages(prev => [...prev, { 
@@ -544,7 +667,7 @@ Use Australian English throughout. Be professional, thorough, and detailed.`,
       console.error('Visual generation error:', error);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: 'Sorry, I encountered an error generating the visual content. Please try again.' 
+        content: `I encountered an error while processing your request: ${error.message || 'Unknown error'}. Please try again or simplify your request.` 
       }]);
     } finally {
       setIsProcessing(false);
@@ -1462,11 +1585,17 @@ Return the complete revised document with all requested changes applied.`,
                   variant="outline"
                   onClick={() => {
                     setShowVisualOptions(false);
+                    const request = pendingVisualRequest;
                     setPendingVisualRequest(null);
+                    
+                    // Continue without visual generation
+                    if (request) {
+                      handleSubmitWithoutVisual(request.message, request.files);
+                    }
                   }}
                   className="flex-1"
                 >
-                  Cancel
+                  Skip Visual
                 </Button>
                 <Button
                   onClick={handleVisualGeneration}
