@@ -48,20 +48,30 @@ export default function QuickVideoUpload({ onProcedureCreated }) {
     const isAudio = file.type.startsWith('audio/');
     const fileSizeMB = file.size / 1024 / 1024;
     
-    // Dynamic timeout based on file size
+    // Dynamic timeout based on file size - support for 1+ hour videos
     let estimatedSeconds = 60;
     if (isVideo) {
-      if (fileSizeMB > 100) estimatedSeconds = 300; // 5 min for large videos
-      else if (fileSizeMB > 50) estimatedSeconds = 180; // 3 min
-      else estimatedSeconds = 120; // 2 min
+      if (fileSizeMB > 500) estimatedSeconds = 900; // 15 min for very large videos (1+ hours)
+      else if (fileSizeMB > 300) estimatedSeconds = 720; // 12 min
+      else if (fileSizeMB > 200) estimatedSeconds = 600; // 10 min
+      else if (fileSizeMB > 100) estimatedSeconds = 420; // 7 min
+      else if (fileSizeMB > 50) estimatedSeconds = 240; // 4 min
+      else estimatedSeconds = 150; // 2.5 min
     } else if (isAudio) {
-      if (fileSizeMB > 50) estimatedSeconds = 180;
-      else if (fileSizeMB > 20) estimatedSeconds = 120;
-      else estimatedSeconds = 90;
+      if (fileSizeMB > 100) estimatedSeconds = 480; // 8 min for long audio
+      else if (fileSizeMB > 50) estimatedSeconds = 300; // 5 min
+      else if (fileSizeMB > 20) estimatedSeconds = 180; // 3 min
+      else estimatedSeconds = 120; // 2 min
     }
     
-    // Generous timeout: 4x estimated time (min 5 minutes for large files)
-    const timeoutMs = Math.max(estimatedSeconds * 4 * 1000, fileSizeMB > 50 ? 300000 : 180000);
+    // Generous timeout: 5x estimated time (min 10 minutes for large files, up to 30 min for huge files)
+    const timeoutMs = Math.max(
+      estimatedSeconds * 5 * 1000, 
+      fileSizeMB > 300 ? 1800000 : // 30 min for 300MB+
+      fileSizeMB > 100 ? 1200000 : // 20 min for 100MB+
+      fileSizeMB > 50 ? 600000 : // 10 min for 50MB+
+      300000 // 5 min minimum
+    );
     let timeoutId = null;
     let timedOut = false;
 
@@ -113,9 +123,9 @@ export default function QuickVideoUpload({ onProcedureCreated }) {
         setProgress(prev => Math.min(prev + (60 / adjustedTime), 85));
       }, 1000);
 
-      const prompt = `Transcribe and analyze this ${isVideo ? 'video' : isAudio ? 'audio recording' : 'document'} thoroughly. Extract ALL spoken instructions, demonstrations, and explanations.
+      const prompt = `Transcribe and analyze this ${isVideo ? 'video' : isAudio ? 'audio recording' : 'document'} thoroughly. This may be a long ${isVideo ? 'video' : 'recording'} (${fileSizeMB.toFixed(0)}MB) - extract ALL spoken instructions, demonstrations, and explanations from the entire duration.
 
-Create 6-10 comprehensive procedure sections covering everything demonstrated. For each section provide:
+Create 6-15 comprehensive procedure sections covering everything demonstrated. For each section provide:
 - title: Clear, specific title
 - content: Detailed markdown content with step-by-step instructions from the transcribed audio/video
 - section_type: introduction/step/tip/warning/conclusion
@@ -302,9 +312,12 @@ IMPORTANT:
                   <div className="flex items-center gap-2 bg-blue-100 px-3 py-1 rounded-full">
                     <Clock className="w-3.5 h-3.5 text-blue-700" />
                     <span className="text-sm font-mono text-blue-700">
-                      {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, '0')}
+                      ~{Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, '0')}
                     </span>
                   </div>
+                )}
+                {fileSizeMB > 200 && (
+                  <span className="text-xs text-blue-600 font-medium">Large file - please wait</span>
                 )}
               </div>
               <div className="space-y-1">
@@ -341,7 +354,7 @@ IMPORTANT:
               <strong>🎥 AI will:</strong> Transcribe all audio, analyze demonstrations, and create a complete procedure with detailed sections automatically.
             </p>
             <p className="text-xs text-slate-600">
-              <strong>Large files:</strong> Videos up to 200MB supported. Processing time: ~2-5 minutes for large files. Ensure clear audio for best results.
+              <strong>Long videos supported:</strong> 1+ hour videos up to 500MB. Processing time: ~5-20 minutes depending on length. Ensure clear audio for best results.
             </p>
           </div>
 
