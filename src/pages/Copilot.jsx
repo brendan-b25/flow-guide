@@ -26,6 +26,9 @@ export default function Copilot() {
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [showAISettings, setShowAISettings] = useState(false);
+  const [showVisualOptions, setShowVisualOptions] = useState(false);
+  const [visualStyle, setVisualStyle] = useState('technical');
+  const [pendingVisualRequest, setPendingVisualRequest] = useState(null);
   const [aiCustomization, setAiCustomization] = useState(() => {
     const saved = localStorage.getItem('aiCustomization');
     return saved ? JSON.parse(saved) : {
@@ -211,11 +214,15 @@ export default function Copilot() {
         .join('\n\n');
       
       // Check if user wants visual content
-      const needsVisuals = /visual|diagram|illustration|infographic|picture|image/i.test(userMessage);
+      const needsVisuals = /visual|diagram|illustration|infographic|picture|image|flowchart|chart|mockup|schematic/i.test(userMessage);
       let generatedImageUrl = null;
 
       if (needsVisuals && isContentRequest) {
-        generatedImageUrl = await generateVisualContent(userMessage);
+        // Show visual options dialog and wait for user selection
+        setPendingVisualRequest(userMessage);
+        setShowVisualOptions(true);
+        setIsProcessing(false);
+        return;
       }
 
       const thinkingInstructions = {
@@ -389,11 +396,51 @@ Use Australian English throughout. Be professional, thorough, and detailed.`,
     setShowTemplates(false);
   };
 
-  const generateVisualContent = async (prompt) => {
+  const visualStyles = {
+    technical: {
+      name: 'Technical Diagram',
+      prompt: 'Clean technical diagram with precise lines, clear labels, annotations, and measurements. Professional engineering style with grid background, blue and grey color scheme. High contrast, minimal design.'
+    },
+    infographic: {
+      name: 'Infographic',
+      prompt: 'Modern infographic design with icons, statistics, data visualizations, and clear sections. Vibrant but professional colors (blues, greys, white). Clean layout with visual hierarchy.'
+    },
+    flowchart: {
+      name: 'Flowchart',
+      prompt: 'Professional flowchart with standardized shapes (rectangles, diamonds, arrows). Clear decision points, process steps, and flow directions. Minimal color scheme with blue highlights.'
+    },
+    process: {
+      name: 'Process Flow',
+      prompt: 'Step-by-step process visualization with numbered stages, directional arrows, and clear transitions. Clean modern design with blue gradient accents on white background.'
+    },
+    mockup: {
+      name: 'UI Mockup',
+      prompt: 'Professional user interface mockup with clean layouts, buttons, forms, and navigation elements. Modern flat design with blue and grey color scheme. High fidelity wireframe style.'
+    },
+    schematic: {
+      name: 'Schematic',
+      prompt: 'Detailed schematic diagram with components, connections, and technical annotations. Engineering blueprint style with precise measurements and specifications. Blue line art on white background.'
+    }
+  };
+
+  const generateVisualContent = async (prompt, style = 'technical') => {
     setIsGeneratingImage(true);
     try {
+      const styleConfig = visualStyles[style];
       const { url } = await base44.integrations.Core.GenerateImage({
-        prompt: `Professional documentation illustration: ${prompt}. Clean, modern, technical diagram style with clear labels and professional color scheme using blues and greys.`
+        prompt: `${styleConfig.prompt}
+
+Topic: ${prompt}
+
+CRITICAL REQUIREMENTS:
+- Professional documentation quality
+- Clear, readable text and labels
+- High contrast for printing
+- Minimal color palette (blues, greys, white)
+- Clean backgrounds
+- Vector-style clarity
+- Suitable for professional reports and manuals
+- No photorealistic elements, focus on clarity and information design`
       });
       
       return url;
@@ -402,6 +449,105 @@ Use Australian English throughout. Be professional, thorough, and detailed.`,
       return null;
     } finally {
       setIsGeneratingImage(false);
+    }
+  };
+
+  const handleVisualGeneration = async () => {
+    if (!pendingVisualRequest) return;
+    
+    setShowVisualOptions(false);
+    setIsProcessing(true);
+
+    try {
+      const userMessage = pendingVisualRequest;
+      setPendingVisualRequest(null);
+      
+      // Generate visual with selected style
+      const generatedImageUrl = await generateVisualContent(userMessage, visualStyle);
+      
+      // Continue with LLM processing
+      const conversationHistory = messages
+        .slice(-6)
+        .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
+        .join('\n\n');
+
+      const thinkingInstructions = {
+        standard: `You are FlowGuide Copilot, a professional documentation assistant. Create clear, well-structured content with practical guidance.`,
+        deep: `You are FlowGuide Copilot, an expert AI documentation specialist with advanced analytical capabilities.
+
+DEEP THINKING PROCESS:
+1. Thoroughly analyze the user's request - understand context, requirements, and end goals
+2. Break down complex topics into logical, comprehensive components
+3. Consider multiple approaches and select the optimal structure and content
+4. Think through edge cases, safety considerations, and practical scenarios
+5. Apply rigorous reasoning to ensure technical accuracy and completeness
+
+Provide comprehensive, deeply reasoned responses with thorough explanations.`,
+        technical: `You are FlowGuide Copilot, a senior technical documentation expert with deep expertise in complex systems, procedures, and SOPs.
+
+TECHNICAL EXPERT MODE - DEEP ANALYSIS:
+• Analyze requirements with system-level perspective and technical precision
+• Consider dependencies, prerequisites, compliance requirements, and downstream impacts
+• Apply engineering principles, industry standards, and best practices
+• Include detailed technical specifications, measurements, and parameters
+• Provide comprehensive explanations with technical rationale and theoretical foundations
+• Think through failure modes, risk mitigation, error handling, and troubleshooting workflows
+• Structure content for technical audiences while maintaining exceptional clarity
+
+Use precise terminology, include maximum technical depth, explain underlying mechanisms and principles. For SOPs: Include purpose, scope, roles & responsibilities, detailed procedures with decision trees, quality controls, safety protocols, compliance requirements, and comprehensive troubleshooting.`
+      };
+
+      const result = await base44.integrations.Core.InvokeLLM({
+        prompt: `${thinkingInstructions[thinkingMode]}
+
+${generatedImageUrl ? `A ${visualStyles[visualStyle].name.toLowerCase()} has been generated and is available at: ${generatedImageUrl}
+
+IMPORTANT: Include this visual in your response using markdown image syntax:
+![${visualStyles[visualStyle].name}](${generatedImageUrl})
+
+Place the image at the most appropriate location in your response - typically after the introduction or within relevant sections.
+
+` : ''}${conversationHistory ? `CONVERSATION HISTORY (for context):
+${conversationHistory}
+
+` : ''}CURRENT USER REQUEST: ${userMessage}
+
+${canvasContent ? `EXISTING CANVAS CONTENT (user may want to modify/extend this):
+${canvasContent}
+
+` : ''}Context: You're helping users in a professional documentation platform.
+
+CRITICAL INSTRUCTIONS FOR CONTENT CREATION:
+1. READ THE USER'S REQUEST CAREFULLY - Follow EXACTLY what they're asking for
+2. BE COMPREHENSIVE AND DETAILED with thorough explanations
+3. PROFESSIONAL FORMATTING with ##, ###, **bold**, bullet points, numbered lists, and tables
+4. Include the generated visual naturally in the documentation
+5. Provide context around the visual - explain what it shows and how it relates to the content
+6. COMPREHENSIVE STRUCTURE with multiple detailed sections
+7. Write 300-500+ words minimum for full documents
+8. Make it immediately usable without further editing
+
+Use Australian English throughout. Be professional, thorough, and detailed.`,
+        add_context_from_internet: false
+      });
+
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: result,
+        isStructured: true
+      }]);
+      
+      speakText(result);
+      setCanvasContent(result);
+      
+    } catch (error) {
+      console.error('Visual generation error:', error);
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: 'Sorry, I encountered an error generating the visual content. Please try again.' 
+      }]);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -1273,11 +1419,74 @@ Return the complete revised document with all requested changes applied.`,
           </DialogContent>
         </Dialog>
 
+        {/* Visual Style Options Dialog */}
+        <Dialog open={showVisualOptions} onOpenChange={setShowVisualOptions}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ImageIcon className="w-5 h-5 text-blue-600" />
+                Choose Visual Style
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              <p className="text-sm text-slate-600">
+                Select the visual style that best fits your documentation needs:
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {Object.entries(visualStyles).map(([key, style]) => (
+                  <button
+                    key={key}
+                    onClick={() => setVisualStyle(key)}
+                    className={`p-4 rounded-lg border-2 text-left transition-all ${
+                      visualStyle === key
+                        ? 'border-blue-500 bg-blue-50 shadow-sm'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    <div className="font-semibold text-slate-900 text-sm mb-1">
+                      {style.name}
+                    </div>
+                    <div className="text-xs text-slate-600 line-clamp-2">
+                      {key === 'technical' && 'Precise diagrams with labels and measurements'}
+                      {key === 'infographic' && 'Visual data presentation with icons and stats'}
+                      {key === 'flowchart' && 'Process flows with decision points'}
+                      {key === 'process' && 'Step-by-step visual workflows'}
+                      {key === 'mockup' && 'Interface and layout designs'}
+                      {key === 'schematic' && 'Engineering blueprints and schematics'}
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowVisualOptions(false);
+                    setPendingVisualRequest(null);
+                  }}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleVisualGeneration}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                >
+                  Generate Visual
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* Visual Generation Indicator */}
         {isGeneratingImage && (
-          <div className="fixed bottom-24 right-6 bg-blue-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3">
+          <div className="fixed bottom-24 right-6 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3">
             <Loader2 className="w-5 h-5 animate-spin" />
-            <span className="text-sm font-medium">Generating visual content...</span>
+            <div>
+              <div className="text-sm font-medium">Generating {visualStyles[visualStyle].name.toLowerCase()}...</div>
+              <div className="text-xs text-blue-100">This may take a few moments</div>
+            </div>
           </div>
         )}
       </div>
