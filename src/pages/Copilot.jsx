@@ -93,6 +93,10 @@ export default function Copilot() {
     localStorage.setItem('aiCustomization', JSON.stringify(aiCustomization));
   }, [aiCustomization]);
 
+  useEffect(() => {
+    localStorage.setItem('aiThinkingMode', thinkingMode);
+  }, [thinkingMode]);
+
   const speakText = (text) => {
     if (!speechSynthesisRef.current) return;
 
