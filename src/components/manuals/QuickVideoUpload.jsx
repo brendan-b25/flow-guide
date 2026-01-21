@@ -242,14 +242,23 @@ IMPORTANT:
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      setIsOpen(open);
+      if (!open && !isProcessing) {
+        setFile(null);
+        setTitle('');
+        setStatus('');
+        setProgress(0);
+        setCountdown(0);
+      }
+    }}>
       <DialogTrigger asChild>
         <Button variant="outline" className="border-2 border-blue-200 text-blue-700 hover:bg-blue-50 h-12 px-6">
           <Video className="w-5 h-5 mr-2" />
           From Video
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" onInteractOutside={(e) => isProcessing && e.preventDefault()} onEscapeKeyDown={(e) => isProcessing && e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="text-2xl flex items-center gap-2">
             <Video className="w-6 h-6 text-blue-600" />
