@@ -218,7 +218,7 @@ IMPORTANT:
       let errorMessage = 'An unexpected error occurred. Please try again.';
       
       if (error.message === 'TIMEOUT') {
-        errorMessage = `Processing timeout - large ${isVideo ? 'video' : isAudio ? 'audio' : 'file'} (${fileSizeMB.toFixed(1)}MB) exceeded time limit. Try compressing the file or splitting it into smaller segments.`;
+        errorMessage = `Processing timeout - ${isVideo ? 'video' : isAudio ? 'audio' : 'file'} (${fileSizeMB.toFixed(1)}MB) exceeded ${Math.round(timeoutMs/60000)} minute time limit. For very long videos (1+ hours), consider splitting into multiple procedures or compressing the file.`;
       } else if (error.message === 'NO_SECTIONS') {
         errorMessage = 'AI could not extract content from the file. Ensure the file contains clear spoken audio or narration.';
       } else if (error.message?.includes('upload')) {
@@ -226,7 +226,7 @@ IMPORTANT:
       } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
         errorMessage = 'Network error - large file upload interrupted. Check your internet and try again.';
       } else if (error.message?.includes('size') || error.message?.includes('too large')) {
-        errorMessage = 'File is too large. Please compress or split the video into smaller files (recommended: under 100MB per file).';
+        errorMessage = 'File exceeds system limits. For long videos (1+ hours), compress to reduce file size or split into parts.';
       }
       
       setStatus('error');
@@ -325,7 +325,7 @@ IMPORTANT:
                     </span>
                   </div>
                 )}
-                {fileSizeMB > 200 && (
+                {file && (file.size / 1024 / 1024) > 200 && (
                   <span className="text-xs text-blue-600 font-medium">Large file - please wait</span>
                 )}
               </div>
