@@ -225,9 +225,11 @@ IMPORTANT:
       } else if (error.message?.includes('upload')) {
         errorMessage = 'File upload failed. Large files may take longer - check your connection and try again.';
       } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
-        errorMessage = 'Network error - large file upload interrupted. Check your internet and try again.';
+        errorMessage = 'Network error during processing. Check your internet connection.';
       } else if (error.message?.includes('size') || error.message?.includes('too large')) {
-        errorMessage = 'File exceeds system limits. For long videos (1+ hours), compress to reduce file size or split into parts.';
+        errorMessage = 'File is too large. Compress the video or split into smaller parts.';
+      } else {
+        errorMessage = `Processing failed: ${error.message}. Please try again.`;
       }
       
       setStatus('error');
@@ -236,9 +238,6 @@ IMPORTANT:
       alert(`❌ ${errorMessage}`);
     } finally {
       setIsProcessing(false);
-      if (timeoutId) clearTimeout(timeoutId);
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
     }
   };
 
