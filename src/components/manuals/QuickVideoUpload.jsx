@@ -72,17 +72,10 @@ export default function QuickVideoUpload({ onProcedureCreated }) {
       fileSizeMB > 50 ? 600000 : // 10 min for 50MB+
       300000 // 5 min minimum
     );
+
     let timeoutId = null;
-    let timedOut = false;
 
     try {
-      // Set up timeout
-      timeoutId = setTimeout(() => {
-        timedOut = true;
-        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-        if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-        throw new Error('TIMEOUT');
-      }, timeoutMs);
 
       // Create manual first
       const manual = await base44.entities.Manual.create({
@@ -91,21 +84,18 @@ export default function QuickVideoUpload({ onProcedureCreated }) {
         status: 'draft'
       });
 
-      if (timedOut) return;
-
       setProgress(10);
-      setStatus('Uploading video...');
+      setStatus('Uploading file...');
       setCountdown(estimatedSeconds);
 
       const uploadStart = Date.now();
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       const uploadTime = (Date.now() - uploadStart) / 1000;
 
-      if (timedOut) return;
-
       setProgress(25);
       setStatus(isVideo || isAudio ? 'Transcribing and analyzing...' : 'Analyzing content...');
 
+      // Start countdown
       countdownIntervalRef.current = setInterval(() => {
         setCountdown(prev => {
           const newVal = prev - 1;
@@ -117,10 +107,15 @@ export default function QuickVideoUpload({ onProcedureCreated }) {
         });
       }, 1000);
 
+      // Start progress animation
       const adjustedTime = Math.max(estimatedSeconds - uploadTime, 15);
+      const progressIncrement = 60 / adjustedTime; // Total 60% progress (from 25% to 85%)
       
       progressIntervalRef.current = setInterval(() => {
-        setProgress(prev => Math.min(prev + (60 / adjustedTime), 85));
+        setProgress(prev => {
+          const next = prev + progressIncrement;
+          return next >= 85 ? 85 : next;
+        });
       }, 1000);
 
       const prompt = `Transcribe and analyze this ${isVideo ? 'video' : isAudio ? 'audio recording' : 'document'} thoroughly. This may be a long ${isVideo ? 'video' : 'recording'} (${fileSizeMB.toFixed(0)}MB) - extract ALL spoken instructions, demonstrations, and explanations from the entire duration.
@@ -163,12 +158,15 @@ IMPORTANT:
         }
       });
 
-      if (timedOut) return;
-
-      // Clear timeout and intervals
-      if (timeoutId) clearTimeout(timeoutId);
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+      // Clear intervals
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
 
       setProgress(90);
       setCountdown(0);
@@ -208,18 +206,21 @@ IMPORTANT:
         throw new Error('NO_SECTIONS');
       }
     } catch (error) {
-      // Clean up
-      if (timeoutId) clearTimeout(timeoutId);
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+      // Clean up intervals
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
       
-      console.error('Error:', error);
+      console.error('Video upload error:', error);
       
-      let errorMessage = 'An unexpected error occurred. Please try again.';
+      let errorMessage = 'Failed to create procedure. Please try again.';
       
-      if (error.message === 'TIMEOUT') {
-        errorMessage = `Processing timeout - ${isVideo ? 'video' : isAudio ? 'audio' : 'file'} (${fileSizeMB.toFixed(1)}MB) exceeded ${Math.round(timeoutMs/60000)} minute time limit. For very long videos (1+ hours), consider splitting into multiple procedures or compressing the file.`;
-      } else if (error.message === 'NO_SECTIONS') {
+      if (error.message === 'NO_SECTIONS') {
         errorMessage = 'AI could not extract content from the file. Ensure the file contains clear spoken audio or narration.';
       } else if (error.message?.includes('upload')) {
         errorMessage = 'File upload failed. Large files may take longer - check your connection and try again.';
