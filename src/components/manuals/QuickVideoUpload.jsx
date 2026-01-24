@@ -179,6 +179,7 @@ IMPORTANT:
           const parsed = typeof result.output === 'string' ? JSON.parse(result.output) : result.output;
           sections = parsed.sections || parsed.results || null;
         } catch {
+          // Ignore parse errors - sections will remain null and trigger NO_SECTIONS error below
           sections = null;
         }
       }
