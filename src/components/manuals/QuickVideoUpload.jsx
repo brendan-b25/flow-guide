@@ -206,6 +206,23 @@ IMPORTANT:
         }
       }
 
+      // Validate sections have required properties
+      if (sections && sections.length > 0) {
+        const validSections = sections.filter(section => 
+          section && 
+          typeof section === 'object' && 
+          section.title && 
+          section.content && 
+          section.section_type
+        );
+        
+        if (validSections.length === 0) {
+          sections = null;
+        } else {
+          sections = validSections;
+        }
+      }
+
       if (sections && sections.length > 0) {
         const sectionsToCreate = sections.map((section, index) => ({
           manual_id: manual.id,
