@@ -172,8 +172,33 @@ IMPORTANT:
       setCountdown(0);
       setStatus('Creating sections...');
 
-      if (result.sections && result.sections.length > 0) {
-        const sectionsToCreate = result.sections.map((section, index) => ({
+      // Defensive parsing: extract sections from multiple possible response shapes
+      let sections = null;
+      
+      // Try result.sections first (direct)
+      if (result.sections && Array.isArray(result.sections) && result.sections.length > 0) {
+        sections = result.sections;
+      }
+      // Try result.output (string JSON)
+      else if (result.output && typeof result.output === 'string') {
+        try {
+          const parsed = JSON.parse(result.output);
+          if (parsed.sections && Array.isArray(parsed.sections) && parsed.sections.length > 0) {
+            sections = parsed.sections;
+          }
+        } catch (e) {
+          console.warn('Failed to parse result.output as JSON:', e);
+        }
+      }
+      // Try result.output (object)
+      else if (result.output && typeof result.output === 'object' && result.output.sections) {
+        if (Array.isArray(result.output.sections) && result.output.sections.length > 0) {
+          sections = result.output.sections;
+        }
+      }
+
+      if (sections && sections.length > 0) {
+        const sectionsToCreate = sections.map((section, index) => ({
           manual_id: manual.id,
           title: section.title,
           content: section.content,
