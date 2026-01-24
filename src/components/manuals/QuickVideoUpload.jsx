@@ -193,27 +193,31 @@ IMPORTANT:
           }
         }
         
-        // Check if parsedOutput has sections or results array
-        if (parsedOutput && typeof parsedOutput === 'object') {
+        // Check if parsedOutput is an array first (arrays are objects too)
+        if (Array.isArray(parsedOutput) && parsedOutput.length > 0) {
+          sections = parsedOutput;
+        }
+        // Then check if it's an object with sections or results array
+        else if (parsedOutput && typeof parsedOutput === 'object') {
           if (Array.isArray(parsedOutput.sections) && parsedOutput.sections.length > 0) {
             sections = parsedOutput.sections;
           } else if (Array.isArray(parsedOutput.results) && parsedOutput.results.length > 0) {
             sections = parsedOutput.results;
-          } else if (Array.isArray(parsedOutput) && parsedOutput.length > 0) {
-            // output itself might be an array
-            sections = parsedOutput;
           }
         }
       }
 
-      // Validate sections have required properties
+      // Validate sections have required properties with strict checking
       if (sections && sections.length > 0) {
         const validSections = sections.filter(section => 
           section && 
           typeof section === 'object' && 
-          section.title && 
-          section.content && 
-          section.section_type
+          typeof section.title === 'string' && 
+          section.title.trim().length > 0 &&
+          typeof section.content === 'string' && 
+          section.content.trim().length > 0 &&
+          typeof section.section_type === 'string' && 
+          section.section_type.trim().length > 0
         );
         
         if (validSections.length === 0) {
