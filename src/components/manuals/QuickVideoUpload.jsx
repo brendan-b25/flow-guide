@@ -172,8 +172,42 @@ IMPORTANT:
       setCountdown(0);
       setStatus('Creating sections...');
 
-      if (result.sections && result.sections.length > 0) {
-        const sectionsToCreate = result.sections.map((section, index) => ({
+      // Defensive parsing: support multiple LLM response shapes
+      let sections = null;
+      
+      // Try direct sections field first
+      if (result.sections && Array.isArray(result.sections) && result.sections.length > 0) {
+        sections = result.sections;
+      }
+      // Try parsing result.output if sections not found
+      else if (result.output) {
+        let parsedOutput = result.output;
+        
+        // If output is a string, try to parse it as JSON
+        if (typeof result.output === 'string') {
+          try {
+            parsedOutput = JSON.parse(result.output);
+          } catch {
+            // If parsing fails, output is not valid JSON
+            parsedOutput = null;
+          }
+        }
+        
+        // Check if parsedOutput has sections or results array
+        if (parsedOutput && typeof parsedOutput === 'object') {
+          if (Array.isArray(parsedOutput.sections) && parsedOutput.sections.length > 0) {
+            sections = parsedOutput.sections;
+          } else if (Array.isArray(parsedOutput.results) && parsedOutput.results.length > 0) {
+            sections = parsedOutput.results;
+          } else if (Array.isArray(parsedOutput) && parsedOutput.length > 0) {
+            // output itself might be an array
+            sections = parsedOutput;
+          }
+        }
+      }
+
+      if (sections && sections.length > 0) {
+        const sectionsToCreate = sections.map((section, index) => ({
           manual_id: manual.id,
           title: section.title,
           content: section.content,
