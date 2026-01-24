@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';

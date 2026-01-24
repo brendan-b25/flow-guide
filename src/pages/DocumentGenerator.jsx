@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { FileText, Download, Loader2, Sparkles, File, Table, Save } from 'lucide-react';
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table as DocxTable, TableRow, TableCell, WidthType } from 'docx';
+import { Document, Packer, Paragraph, HeadingLevel, Table as DocxTable, TableRow, TableCell, WidthType } from 'docx';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 

@@ -1,11 +1,9 @@
-import React, { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Download, FileText, File, Table, Loader2 } from 'lucide-react';
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx';
+import { Document, Packer, Paragraph, HeadingLevel, AlignmentType } from 'docx';
 import * as XLSX from 'xlsx';
-import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
 export default function ExportDialog({ manual, sections, branding }) {
