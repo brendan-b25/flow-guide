@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -6,12 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Loader2, Sparkles, Plus, X, Upload, FileText, Save, Download, Edit2, Trash2, Search, RefreshCw, Combine, MoreVertical, Ruler, Image as ImageIcon } from 'lucide-react';
+import { Loader2, Sparkles, Plus, X, Save, Download, Edit2, Trash2, Search, RefreshCw, Combine, MoreVertical, Ruler, Image as ImageIcon } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import jsPDF from 'jspdf';
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx';
+import { Document, Packer, Paragraph, HeadingLevel, AlignmentType } from 'docx';
 import * as XLSX from 'xlsx';
 
 export default function CheatSheetGenerator() {

@@ -1,12 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
-import { Sparkles, Send, Loader2, FileText, RefreshCw, Paperclip, X, Download, Copy, Edit3, Mic, MicOff, Image as ImageIcon, Layout, Palette, Settings, Brain } from 'lucide-react';
+import { Sparkles, Send, Loader2, RefreshCw, Paperclip, X, Download, Copy, Edit3, Mic, MicOff, Image as ImageIcon, Layout, Settings, Brain } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import jsPDF from 'jspdf';
 import { Document, Packer, Paragraph, HeadingLevel, TextRun } from 'docx';
