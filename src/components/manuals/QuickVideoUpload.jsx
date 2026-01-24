@@ -172,8 +172,19 @@ IMPORTANT:
       setCountdown(0);
       setStatus('Creating sections...');
 
-      if (result.sections && result.sections.length > 0) {
-        const sectionsToCreate = result.sections.map((section, index) => ({
+      // Defensive parsing to extract sections from multiple possible response shapes
+      let sections = result?.sections;
+      if (!sections && result?.output) {
+        try {
+          const parsed = typeof result.output === 'string' ? JSON.parse(result.output) : result.output;
+          sections = parsed.sections || parsed.results || null;
+        } catch {
+          sections = null;
+        }
+      }
+
+      if (sections && sections.length > 0) {
+        const sectionsToCreate = sections.map((section, index) => ({
           manual_id: manual.id,
           title: section.title,
           content: section.content,
