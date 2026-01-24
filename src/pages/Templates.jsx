@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -6,7 +6,7 @@ import { createPageUrl } from '../utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Search, FileText, Plus, Trash2, Copy } from 'lucide-react';
+import { Search, FileText, Trash2, Copy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 export default function Templates() {
