@@ -172,8 +172,38 @@ IMPORTANT:
       setCountdown(0);
       setStatus('Creating sections...');
 
-      if (result.sections && result.sections.length > 0) {
-        const sectionsToCreate = result.sections.map((section, index) => ({
+      // Defensive parsing to extract sections from multiple possible response shapes
+      let sections = null;
+      
+      // First, try direct result.sections
+      if (result.sections && Array.isArray(result.sections) && result.sections.length > 0) {
+        sections = result.sections;
+      } 
+      // Otherwise, check result.output (may be JSON string or object)
+      else if (result.output) {
+        let parsed = result.output;
+        
+        // If output is a string, try to parse it as JSON
+        if (typeof result.output === 'string') {
+          try {
+            parsed = JSON.parse(result.output);
+          } catch (e) {
+            // If parsing fails, parsed remains the string
+          }
+        }
+        
+        // Now check parsed for sections or results array
+        if (parsed && typeof parsed === 'object') {
+          if (parsed.sections && Array.isArray(parsed.sections) && parsed.sections.length > 0) {
+            sections = parsed.sections;
+          } else if (parsed.results && Array.isArray(parsed.results) && parsed.results.length > 0) {
+            sections = parsed.results;
+          }
+        }
+      }
+
+      if (sections && sections.length > 0) {
+        const sectionsToCreate = sections.map((section, index) => ({
           manual_id: manual.id,
           title: section.title,
           content: section.content,
