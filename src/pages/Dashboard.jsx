@@ -20,8 +20,11 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 
-// Mock activity data - replace with actual tracking
+// Configuration constants
 const MOCK_WEEKLY_ACTIVITY = [12, 19, 15, 25, 22, 18, 16];
+const MAX_DAILY_ACTIVITY = 25; // For bar chart scaling
+const MOCK_AI_INTERACTIONS = 156;
+const MOCK_ACTIVE_TIME = '5d 2h';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -100,7 +103,7 @@ export default function Dashboard() {
     },
     {
       title: 'AI Interactions',
-      value: '156',
+      value: MOCK_AI_INTERACTIONS.toString(),
       icon: Sparkles,
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',
@@ -109,7 +112,7 @@ export default function Dashboard() {
     },
     {
       title: 'Active This Week',
-      value: '5d 2h',
+      value: MOCK_ACTIVE_TIME,
       icon: Activity,
       color: 'text-orange-600',
       bgColor: 'bg-orange-50',
@@ -265,7 +268,7 @@ export default function Dashboard() {
                     <div className="flex-1 bg-slate-100 rounded-full h-3 overflow-hidden">
                       <div
                         className="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full transition-all"
-                        style={{ width: `${(stats.weeklyActivity[index] / 25) * 100}%` }}
+                        style={{ width: `${(stats.weeklyActivity[index] / MAX_DAILY_ACTIVITY) * 100}%` }}
                       />
                     </div>
                     <div className="w-8 text-sm text-slate-600 font-medium text-right">

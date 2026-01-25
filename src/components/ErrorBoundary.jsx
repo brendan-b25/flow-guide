@@ -2,6 +2,9 @@ import React from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+// Configuration constants
+const MAX_ERROR_LOGS = 20;
+
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -46,8 +49,8 @@ class ErrorBoundary extends React.Component {
       const existingLogs = JSON.parse(localStorage.getItem('errorLogs') || '[]');
       existingLogs.push(errorLog);
       
-      // Keep only last 10 errors
-      if (existingLogs.length > 10) {
+      // Keep only last MAX_ERROR_LOGS errors
+      if (existingLogs.length > MAX_ERROR_LOGS) {
         existingLogs.shift();
       }
       

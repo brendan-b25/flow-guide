@@ -1,5 +1,9 @@
+import React from 'react';
 import { toast as sonnerToast } from 'sonner';
 import { CheckCircle, XCircle, AlertCircle, Info, Loader2 } from 'lucide-react';
+
+// Configuration constants
+const MAX_ERROR_LOGS = 20;
 
 // Enhanced toast utility with better UX
 export const toast = {
@@ -101,7 +105,7 @@ export async function safeAsync(operation, errorMessage = 'Operation failed') {
   }
 }
 
-// Error logger
+  // Error logger
 export function logError(error, context = {}) {
   const errorLog = {
     timestamp: new Date().toISOString(),
@@ -121,8 +125,8 @@ export function logError(error, context = {}) {
     const logs = JSON.parse(localStorage.getItem('errorLogs') || '[]');
     logs.push(errorLog);
     
-    // Keep only last 20 errors
-    if (logs.length > 20) {
+    // Keep only last MAX_ERROR_LOGS errors
+    if (logs.length > MAX_ERROR_LOGS) {
       logs.shift();
     }
     
