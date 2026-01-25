@@ -6,7 +6,7 @@ export default function Home() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    navigate(createPageUrl('Manuals'));
+    navigate(createPageUrl('Dashboard'));
   }, [navigate]);
 
   return (
