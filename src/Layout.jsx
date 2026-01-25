@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from './utils';
 import { FileText, BookOpen, Menu, X, ChevronRight, Sparkles, LayoutDashboard } from 'lucide-react';
 import CommandPalette from '@/components/CommandPalette';
+import KeyboardShortcuts from '@/components/KeyboardShortcuts';
 
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
@@ -123,6 +124,7 @@ export default function Layout({ children, currentPageName }) {
             {/* Command Palette */}
             <div className="flex items-center gap-2">
               <CommandPalette />
+              <KeyboardShortcuts />
             </div>
           </div>
         </div>
