@@ -3,6 +3,7 @@ import { ChevronRight, Home } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 
 const PAGE_TITLES = {
+  'Dashboard': 'Dashboard',
   'Manuals': 'Procedures',
   'Templates': 'Templates',
   'DocumentGenerator': 'Documents',

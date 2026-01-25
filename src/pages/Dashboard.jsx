@@ -20,6 +20,9 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 
+// Mock activity data - replace with actual tracking
+const MOCK_WEEKLY_ACTIVITY = [12, 19, 15, 25, 22, 18, 16];
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const [stats, setStats] = useState({
@@ -41,7 +44,7 @@ export default function Dashboard() {
       totalDocuments: documents.length,
       recentActivity: recentPages.slice(0, 5),
       popularItems: procedures.slice(0, 5),
-      weeklyActivity: [12, 19, 15, 25, 22, 18, 16] // Mock data
+      weeklyActivity: MOCK_WEEKLY_ACTIVITY
     });
   }, []);
 

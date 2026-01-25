@@ -34,7 +34,7 @@ import {
 import { useTheme } from '@/hooks/useTheme';
 
 const NAVIGATION_ITEMS = [
-  { name: 'Home', icon: Home, page: 'Manuals', category: 'Navigation' },
+  { name: 'Dashboard', icon: Home, page: 'Dashboard', category: 'Navigation' },
   { name: 'Procedures', icon: BookOpen, page: 'Manuals', category: 'Navigation' },
   { name: 'Templates', icon: FileText, page: 'Templates', category: 'Navigation' },
   { name: 'Documents', icon: FileText, page: 'DocumentGenerator', category: 'Navigation' },
@@ -110,8 +110,13 @@ export default function CommandPalette() {
         toggleTheme();
         break;
       case 'shortcuts':
-        // Show shortcuts dialog
-        alert('Keyboard Shortcuts:\n\n⌘/Ctrl + K - Command Palette\n⌘/Ctrl + S - Save\n⌘/Ctrl + P - Print');
+        // Trigger keyboard shortcuts - will be handled by KeyboardShortcuts component
+        const event = new KeyboardEvent('keydown', {
+          key: '/',
+          metaKey: true,
+          bubbles: true
+        });
+        document.dispatchEvent(event);
         break;
       case 'new-document':
         navigate(createPageUrl('DocumentGenerator'));

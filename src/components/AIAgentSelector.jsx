@@ -120,6 +120,7 @@ export default function AIAgentSelector({ onModelChange, onModeChange, onSetting
   useEffect(() => {
     localStorage.setItem('selectedAIMode', selectedMode);
     // Auto-switch to recommended model for the mode
+    // Note: This provides smart defaults but users can manually change the model if desired
     const recommendedModel = TASK_MODES[selectedMode]?.recommendedModel;
     if (recommendedModel) {
       setSelectedModel(recommendedModel);
