@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from './utils';
-import { FileText, BookOpen, Menu, X, ChevronRight, Sparkles } from 'lucide-react';
+import { FileText, BookOpen, Menu, X, ChevronRight, Sparkles, LayoutDashboard } from 'lucide-react';
 import CommandPalette from '@/components/CommandPalette';
 
 export default function Layout({ children, currentPageName }) {
@@ -13,6 +13,7 @@ export default function Layout({ children, currentPageName }) {
   };
 
   const navItems = [
+    { name: 'Dashboard', icon: LayoutDashboard, page: 'Dashboard' },
     { name: 'Procedures', icon: BookOpen, page: 'Manuals' },
     { name: 'Templates', icon: FileText, page: 'Templates' },
     { name: 'Documents', icon: FileText, page: 'DocumentGenerator' },
@@ -36,7 +37,7 @@ export default function Layout({ children, currentPageName }) {
         <div className="flex flex-col h-full">
           {/* Sidebar Header */}
           <div className="p-4 border-b border-slate-200 flex items-center justify-between">
-            <Link to={createPageUrl('Manuals')} className="flex items-center gap-3">
+            <Link to={createPageUrl('Dashboard')} className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-md">
                 <FileText className="w-5 h-5 text-white" />
               </div>
@@ -101,7 +102,7 @@ export default function Layout({ children, currentPageName }) {
             </button>
 
             {/* Logo & Brand (Desktop) */}
-            <Link to={createPageUrl('Manuals')} className="hidden lg:flex items-center gap-3 group">
+            <Link to={createPageUrl('Dashboard')} className="hidden lg:flex items-center gap-3 group">
               <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow">
                 <FileText className="w-5 h-5 text-white" />
               </div>
