@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from './utils';
 import { FileText, BookOpen, Menu, X, ChevronRight, Sparkles } from 'lucide-react';
+import CommandPalette from '@/components/CommandPalette';
 
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
@@ -118,7 +119,10 @@ export default function Layout({ children, currentPageName }) {
               <span className="text-lg font-bold text-slate-800">FlowGuide</span>
             </div>
 
-            <div className="w-10 lg:w-auto"></div>
+            {/* Command Palette */}
+            <div className="flex items-center gap-2">
+              <CommandPalette />
+            </div>
           </div>
         </div>
       </header>
