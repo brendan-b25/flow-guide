@@ -10,6 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import jsPDF from 'jspdf';
 import { Document, Packer, Paragraph, HeadingLevel, TextRun } from 'docx';
 import AIFace from '@/components/copilot/AIFace';
+import AIAgentSelector from '@/components/AIAgentSelector';
+import BreadcrumbNav from '@/components/BreadcrumbNav';
+import { toast } from '@/lib/notifications';
 
 export default function Copilot() {
   const [messages, setMessages] = useState([]);
@@ -28,6 +31,14 @@ export default function Copilot() {
   const [showVisualOptions, setShowVisualOptions] = useState(false);
   const [visualStyle, setVisualStyle] = useState('technical');
   const [pendingVisualRequest, setPendingVisualRequest] = useState(null);
+  const [selectedModel, setSelectedModel] = useState('gpt-3.5-turbo');
+  const [selectedMode, setSelectedMode] = useState('general');
+  const [aiSettings, setAiSettings] = useState({
+    temperature: 0.7,
+    maxTokens: 2000,
+    streamResponse: true,
+    autoSuggest: true
+  });
   const [aiCustomization, setAiCustomization] = useState(() => {
     const saved = localStorage.getItem('aiCustomization');
     return saved ? JSON.parse(saved) : {
@@ -997,46 +1008,63 @@ Return the complete revised document with all requested changes applied.`,
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Breadcrumb */}
+        <BreadcrumbNav currentPage="Copilot" />
+        
         <div className={`grid gap-6 ${canvasContent ? 'lg:grid-cols-2' : 'lg:grid-cols-1 max-w-4xl mx-auto'}`}>
         {/* Chat Section */}
         <div className={canvasContent ? '' : 'col-span-full'}>
           <div className="mb-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-700 to-blue-900 bg-clip-text text-transparent mb-1">
-                  AI Copilot
-                </h1>
-                <p className="text-sm text-slate-600">
-                  Create and format professional documentation
-                </p>
-              </div>
-              <div className="flex gap-2 items-center">
-                <div className="px-3 py-1.5 rounded-full bg-gradient-to-r from-slate-100 to-blue-100 text-xs font-medium text-slate-700 flex items-center gap-1.5 border border-blue-200">
-                  <Brain className="w-3.5 h-3.5 text-blue-600" />
-                  {thinkingMode === 'standard' && 'Standard'}
-                  {thinkingMode === 'deep' && 'Deep Thinking'}
-                  {thinkingMode === 'technical' && 'Technical Expert'}
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-700 to-blue-900 bg-clip-text text-transparent mb-1">
+                    AI Copilot
+                  </h1>
+                  <p className="text-sm text-slate-600">
+                    Create and format professional documentation with advanced AI models
+                  </p>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowAISettings(true)}
-                  className="gap-2"
-                >
-                  <Settings className="w-4 h-4" />
-                  Customize
-                </Button>
-                {messages.length > 0 && (
+                <div className="flex gap-2 items-center">
+                  <div className="px-3 py-1.5 rounded-full bg-gradient-to-r from-slate-100 to-blue-100 text-xs font-medium text-slate-700 flex items-center gap-1.5 border border-blue-200">
+                    <Brain className="w-3.5 h-3.5 text-blue-600" />
+                    {thinkingMode === 'standard' && 'Standard'}
+                    {thinkingMode === 'deep' && 'Deep Thinking'}
+                    {thinkingMode === 'technical' && 'Technical Expert'}
+                  </div>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={clearChat}
-                    className="text-slate-600"
+                    onClick={() => setShowAISettings(true)}
+                    className="gap-2"
                   >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Clear
+                    <Settings className="w-4 h-4" />
+                    Customize
                   </Button>
-                )}
+                  {messages.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearChat}
+                      className="text-slate-600"
+                    >
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Clear
+                    </Button>
+                  )}
+                </div>
+              </div>
+              
+              {/* AI Agent Selector */}
+              <div className="flex items-center justify-between bg-white rounded-lg border border-slate-200 p-4 shadow-sm">
+                <AIAgentSelector
+                  onModelChange={setSelectedModel}
+                  onModeChange={setSelectedMode}
+                  onSettingsChange={setAiSettings}
+                />
+                <div className="text-xs text-slate-500">
+                  Model: <span className="font-medium text-slate-700">{selectedModel}</span>
+                </div>
               </div>
             </div>
           </div>
