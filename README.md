@@ -6,6 +6,8 @@ A powerful AI-powered workflow assistant with multiple specialized AI agents for
 
 FlowGuide is now available as a **Progressive Web App (PWA)** for iPhone, iPad, and Android devices!
 
+**Installation URL**: `https://brendan-b25.github.io/flow-guide/`
+
 ### Features
 - ✅ Install on your home screen
 - ✅ Works offline
