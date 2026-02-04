@@ -4,6 +4,8 @@
 
 FlowGuide is now available as a Progressive Web App (PWA) that works on iPhone, iPad, and other mobile devices. This guide will help you install and use the app with its enhanced AI agent capabilities.
 
+**Installation URL**: `https://brendan-b25.github.io/flow-guide/`
+
 ## Features
 
 ### 🚀 Core Features
@@ -36,7 +38,7 @@ The app includes multiple specialized AI agents:
 
 #### Method 1: Safari (Recommended)
 
-1. **Open Safari** and navigate to your FlowGuide URL
+1. **Open Safari** and navigate to: `https://brendan-b25.github.io/flow-guide/`
 2. **Tap the Share button** (square with arrow pointing up) at the bottom
 3. **Scroll down** and tap "Add to Home Screen"
 4. **Customize the name** if desired (default: "FlowGuide")
@@ -53,7 +55,7 @@ The app includes multiple specialized AI agents:
 
 #### Method 1: Chrome (Recommended)
 
-1. **Open Chrome** and navigate to your FlowGuide URL
+1. **Open Chrome** and navigate to: `https://brendan-b25.github.io/flow-guide/`
 2. **Tap the menu** (three dots) in the top right
 3. **Tap "Install app"** or "Add to Home screen"
 4. **Tap "Install"** in the popup
