@@ -15,20 +15,14 @@ import {
   FileText,
   Sparkles,
   Home,
-  Settings,
   Search,
   Clock,
   Star,
   Palette,
-  Moon,
-  Sun,
   Keyboard,
   Download,
   Upload,
   Plus,
-  Edit,
-  Trash,
-  Copy,
   Save
 } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';

@@ -10,9 +10,7 @@ import {
   Clock, 
   Star,
   BarChart3,
-  Users,
   Activity,
-  Download,
   ChevronRight,
   Calendar,
   Zap

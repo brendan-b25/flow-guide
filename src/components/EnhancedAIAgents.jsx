@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { 
   Mic, Camera, MapPin, Wifi, WifiOff, Image as ImageIcon, 
-  FileText, Languages, Brain, Sparkles, Zap 
+  FileText, Languages, Brain, Zap 
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
