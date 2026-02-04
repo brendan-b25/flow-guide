@@ -12,5 +12,14 @@ export default defineConfig({
       legacySDKImports: process.env.BASE44_LEGACY_SDK_IMPORTS === 'true'
     }),
     react(),
-  ]
+  ],
+  publicDir: 'public',
+  build: {
+    // Ensure service worker and manifest are included
+    rollupOptions: {
+      input: {
+        main: './index.html'
+      }
+    }
+  }
 });

@@ -12,7 +12,6 @@ import { Document, Packer, Paragraph, HeadingLevel, TextRun } from 'docx';
 import AIFace from '@/components/copilot/AIFace';
 import AIAgentSelector from '@/components/AIAgentSelector';
 import BreadcrumbNav from '@/components/BreadcrumbNav';
-import { toast } from '@/lib/notifications.jsx';
 
 export default function Copilot() {
   const [messages, setMessages] = useState([]);

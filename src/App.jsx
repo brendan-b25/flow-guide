@@ -5,6 +5,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import VisualEditAgent from '@/lib/VisualEditAgent'
 import NavigationTracker from '@/lib/NavigationTracker'
+import InstallPrompt from '@/components/InstallPrompt'
 import { pagesConfig } from './pages.config'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
@@ -82,6 +83,7 @@ function App() {
           <Toaster />
           <SonnerToaster position="top-right" richColors closeButton expand />
           <VisualEditAgent />
+          <InstallPrompt />
         </QueryClientProvider>
       </AuthProvider>
     </ErrorBoundary>
